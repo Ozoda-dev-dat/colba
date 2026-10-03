@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Maktab Print"
+description = "A school print-request portal where teachers submit documents, copy counts, and due times, while branch-assigned print staff manage a deadline-prioritized queue and admins manage access."
+version = "1.0.0"
+id = "artifacts/maktab-print"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23148
+
+[services.development]
+run = "pnpm --filter @workspace/maktab-print run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/maktab-print", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/maktab-print/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23148"
+BASE_PATH = "/"

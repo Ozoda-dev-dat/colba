@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: school
+    description: School branches, users, and print requests
+  - name: storage
+    description: Private print-request attachments
 paths:
   /healthz:
     get:
@@ -24,6 +28,244 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /me:
+    get:
+      operationId: getCurrentUser
+      tags: [school]
+      summary: Get the signed-in user's school profile
+      responses:
+        "200":
+          description: Current profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Sign-in required
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [school]
+      summary: Get branch-scoped print queue counts
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /branches:
+    get:
+      operationId: listBranches
+      tags: [school]
+      summary: List branches visible to the current user
+      responses:
+        "200":
+          description: Branches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Branch"
+    post:
+      operationId: createBranch
+      tags: [school]
+      summary: Create a school branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchInput"
+      responses:
+        "201":
+          description: Created branch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+        "400":
+          description: Invalid branch name
+  /users:
+    get:
+      operationId: listUsers
+      tags: [school]
+      summary: List school accounts for the administrator
+      responses:
+        "200":
+          description: User accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SchoolUser"
+        "403":
+          description: Administrator access required
+  /users/{clerkId}:
+    patch:
+      operationId: updateUserAssignment
+      tags: [school]
+      summary: Assign a user role and branch
+      parameters:
+        - name: clerkId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserAssignment"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchoolUser"
+        "403":
+          description: Administrator access required
+        "404":
+          description: User not found
+  /print-requests:
+    get:
+      operationId: listPrintRequests
+      tags: [school]
+      summary: List requests visible to the current user
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RequestStatus"
+      responses:
+        "200":
+          description: Requests ordered by earliest deadline
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PrintRequest"
+    post:
+      operationId: createPrintRequest
+      tags: [school]
+      summary: Submit a print request for the teacher's assigned branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrintRequestInput"
+      responses:
+        "201":
+          description: Submitted request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrintRequest"
+        "400":
+          description: Invalid request or attachment
+        "403":
+          description: A branch assignment is required
+  /print-requests/{id}:
+    get:
+      operationId: getPrintRequest
+      tags: [school]
+      summary: Get a request the current user is allowed to access
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Print request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrintRequest"
+        "404":
+          description: Request not found
+  /print-requests/{id}/status:
+    patch:
+      operationId: updatePrintRequestStatus
+      tags: [school]
+      summary: Update the status of a request in the printer's branch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestStatusInput"
+      responses:
+        "200":
+          description: Updated request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrintRequest"
+        "403":
+          description: Printer or administrator access required
+        "404":
+          description: Request not found
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a private upload URL for an attachment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlInput"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrl"
+        "400":
+          description: Unsupported file or size
+  /storage/requests/{requestId}/files/{fileIndex}:
+    get:
+      operationId: getPrintRequestFile
+      tags: [storage]
+      summary: Download an attachment after branch/owner authorization
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: fileIndex
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Private attachment
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Attachment not found or not accessible
 components:
   schemas:
     HealthStatus:
@@ -33,4 +275,203 @@ components:
           type: string
       required:
         - status
+    RequestStatus:
+      type: string
+      enum: [queued, in_progress, ready, completed, cancelled]
+    UserRole:
+      type: string
+      enum: [admin, teacher, printer]
+    Branch:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    BranchInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+    UserProfile:
+      type: object
+      required: [clerkId, fullName, email, role, branchId, branchName, isActive]
+      properties:
+        clerkId:
+          type: string
+        fullName:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/UserRole"
+        branchId:
+          type: [integer, "null"]
+        branchName:
+          type: [string, "null"]
+        isActive:
+          type: boolean
+    SchoolUser:
+      type: object
+      required: [clerkId, fullName, email, role, branchId, branchName, isActive, createdAt]
+      properties:
+        clerkId:
+          type: string
+        fullName:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/UserRole"
+        branchId:
+          type: [integer, "null"]
+        branchName:
+          type: [string, "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    UserAssignment:
+      type: object
+      required: [role, branchId, isActive]
+      properties:
+        role:
+          $ref: "#/components/schemas/UserRole"
+        branchId:
+          type: [integer, "null"]
+        isActive:
+          type: boolean
+    DashboardSummary:
+      type: object
+      required: [openCount, urgentCount, inProgressCount, readyCount, completedToday, overdueCount]
+      properties:
+        openCount:
+          type: integer
+        urgentCount:
+          type: integer
+        inProgressCount:
+          type: integer
+        readyCount:
+          type: integer
+        completedToday:
+          type: integer
+        overdueCount:
+          type: integer
+    AttachmentInput:
+      type: object
+      required: [objectPath, name, size, contentType]
+      properties:
+        objectPath:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+    AttachmentInfo:
+      type: object
+      required: [fileIndex, name, size, contentType]
+      properties:
+        fileIndex:
+          type: integer
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+    PrintRequest:
+      type: object
+      required: [id, title, copies, dueAt, note, status, createdAt, branchId, branchName, requesterName, attachments]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        copies:
+          type: integer
+        dueAt:
+          type: string
+          format: date-time
+        note:
+          type: [string, "null"]
+        status:
+          $ref: "#/components/schemas/RequestStatus"
+        createdAt:
+          type: string
+          format: date-time
+        branchId:
+          type: integer
+        branchName:
+          type: string
+        requesterName:
+          type: string
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttachmentInfo"
+    PrintRequestInput:
+      type: object
+      required: [title, copies, dueAt, attachments]
+      properties:
+        title:
+          type: string
+          minLength: 2
+          maxLength: 160
+        copies:
+          type: integer
+          minimum: 1
+          maximum: 5000
+        dueAt:
+          type: string
+          format: date-time
+        note:
+          type: [string, "null"]
+          maxLength: 1000
+        attachments:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/AttachmentInput"
+    RequestStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/RequestStatus"
+    UploadUrlInput:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+    UploadUrl:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
 
