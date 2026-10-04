@@ -35,9 +35,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .public-page { min-height:100dvh;background:#f5f4eb;color:#203e2b;overflow:hidden; }
 .public-nav { height:82px;padding:0 max(6vw,28px);display:flex;align-items:center;justify-content:space-between;max-width:1500px;margin:auto; }
 .brand { display:flex;align-items:center;gap:11px; }
-.brand-mark { width:39px;height:39px;border-radius:12px;background:#d8e7b5;color:#224431;display:grid;place-items:center;font:800 18px sans-serif;letter-spacing:-2px; }
+.brand-logo { width:39px;height:39px;object-fit:contain;flex:none;display:block; }
 .brand-name { font:800 19px sans-serif;letter-spacing:-.7px;line-height:1.05; }
-.brand-sub { color:#78907b;font-size:9px;letter-spacing:1.45px;text-transform:uppercase;margin-top:5px; }
 .public-links { display:flex;align-items:center;gap:27px;font-size:12px;color:#5e735f; }
 .public-links>a:not(.button):hover { color:#1d3c2a; }
 .button { border:0;border-radius:9px;padding:12px 17px;background:#244b34;color:#f7f7eb;display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 12px #21462f1f;transition:transform .18s,background .18s,box-shadow .18s; }
@@ -148,7 +147,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .app-frame { min-height:100dvh;display:flex;background:#f4f3e9; }
 .sidebar { width:252px;flex:none;background:#1b3b2d;color:#e9eee4;padding:26px 16px 18px;display:flex;flex-direction:column;min-height:100dvh;position:sticky;top:0; }
 .sidebar .brand { padding:0 10px 27px; }
-.sidebar .brand-sub { color:#a9bbaa; }
 .side-label { font:600 10px sans-serif;letter-spacing:1.3px;color:#88a18f;padding:19px 12px 9px;text-transform:uppercase; }
 .sidebar nav { display:grid; }
 .nav-link { display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:9px;color:#c4d2c4;font-size:13px;font-weight:500;margin:2px 0;transition:background .18s,color .18s,transform .18s; }
@@ -248,7 +246,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Maktab Print — airy herb-and-paper palette with warm editorial typography. */
 body,button,input,select,textarea { font-family:sans-serif; }
-h1,h2,h3,.brand-name,.page-title,.detail-title,.form-section-title,.panel-title,.stat-value,.step-card h3,.cta-panel h2,.auth-card h1,.success-page h2,.hero-title,.section-intro h2,.sheet-title,.band-number,.brand-mark { font-family:sans-serif !important; }
+h1,h2,h3,.brand-name,.page-title,.detail-title,.form-section-title,.panel-title,.stat-value,.step-card h3,.cta-panel h2,.auth-card h1,.success-page h2,.hero-title,.section-intro h2,.sheet-title,.band-number { font-family:sans-serif !important; }
 .hero-tag,.sheet-top,.sheet-stamp,.hero-caption,.eyebrow,.step-no,.side-label,.date-label,.status,.request-count,.reference-box,.auth-ornament,.home-steps b { font-family:sans-serif !important; }
 .avatar { font-family:sans-serif !important; }
 :root,
@@ -262,7 +260,7 @@ h1,h2,h3,.brand-name,.page-title,.detail-title,.form-section-title,.panel-title,
 .button.secondary { background:#e4efdd;color:#365d43; }
 .button.ghost { color:#42664d;border-color:#d2e1ce; }
 .sidebar { background:#e6f0df;color:#294a36;border-right:1px solid #d4e3ce; }
-.sidebar .brand-sub,.profile-text span { color:#6c8972; }
+.profile-text span { color:#6c8972; }
 .side-label { color:#7a9a7e; }
 .nav-link { color:#55765d; }
 .nav-link:hover { background:#dcebd6;color:#345b42; }
@@ -321,6 +319,7 @@ h1,h2,h3,.brand-name,.page-title,.detail-title,.form-section-title,.panel-title,
   content:'';position:absolute;z-index:-1;top:-190px;right:-155px;width:410px;height:410px;border:1px solid #86a9852b;border-radius:50%;
   box-shadow:0 0 0 28px #86a9850d,0 0 0 58px #86a9850a;pointer-events:none;
 }
+.home-brand { position:absolute;top:32px;left:max(32px,calc((100vw - 1180px)/2));z-index:1; }
 .home-actions {
   position:relative;width:min(100%,780px);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding:14px;
   border:1px solid #ffffffb8;border-radius:32px;background:#ffffff63;box-shadow:0 32px 90px #284b3018, inset 0 1px #ffffffd9;
@@ -375,6 +374,7 @@ h1,h2,h3,.brand-name,.page-title,.detail-title,.form-section-title,.panel-title,
 }
 @media(max-width:640px) {
   .home-page { padding:20px; }
+  .home-brand { top:20px;left:20px; }
   .home-actions { width:min(100%,440px);grid-template-columns:1fr;gap:12px;padding:10px;border-radius:27px; }
   .home-actions .button { min-height:148px;padding:20px;border-radius:19px;font-size:17px; }
 }

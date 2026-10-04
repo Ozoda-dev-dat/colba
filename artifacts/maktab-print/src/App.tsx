@@ -58,7 +58,7 @@ function localDateTimeValue(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 function Brand() {
-  return <div className="brand"><div className="brand-mark">mp</div><div className="brand-name">maktab print</div></div>;
+  return <div className="brand"><img className="brand-logo" src={`${basePath}/logo.png`} alt="" /><div className="brand-name">maktab print</div></div>;
 }
 function Button({ children, className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button className={`button ${className}`} {...props}>{children}</button>;
@@ -91,6 +91,7 @@ function Toast({ notice }: { notice: { text: string; error?: boolean } | null })
 
 function Home() {
   return <main className="public-page home-page">
+    <header className="home-brand"><Brand /></header>
     <nav className="home-actions" aria-label="Asosiy amallar">
       <Link href="/request" className="button">
         <span className="home-action-icon"><FileText aria-hidden="true" /></span>
