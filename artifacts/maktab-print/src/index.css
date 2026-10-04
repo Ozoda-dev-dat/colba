@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap');
 @layer theme, base, components, utilities;
 @import 'tailwindcss';
 
@@ -12,19 +12,19 @@
 }
 
 :root {
-  --background: 44 30% 95%; --foreground: 163 28% 17%; --border: 145 16% 84%;
-  --card: 46 34% 99%; --card-foreground: 163 28% 17%; --input: 145 16% 83%; --ring: 150 39% 34%;
-  --primary: 151 39% 27%; --primary-foreground: 50 30% 97%;
-  --secondary: 78 33% 87%; --muted: 43 21% 90%; --muted-foreground: 153 10% 43%;
-  --app-font-sans: 'DM Sans', sans-serif; --app-font-serif: 'Manrope', sans-serif; --app-font-mono: 'IBM Plex Mono', monospace;
+  --background: 104 35% 96%; --foreground: 156 23% 20%; --border: 111 20% 84%;
+  --card: 90 40% 99%; --card-foreground: 156 23% 20%; --input: 111 20% 82%; --ring: 139 31% 43%;
+  --primary: 139 32% 38%; --primary-foreground: 90 40% 98%;
+  --secondary: 95 37% 89%; --muted: 100 24% 92%; --muted-foreground: 145 10% 43%;
+  --app-font-sans: 'Source Sans 3', sans-serif; --app-font-serif: 'Fraunces', serif; --app-font-mono: 'Source Sans 3', sans-serif;
   --radius: 12px; --shadow-sm: 0 10px 28px rgba(28, 54, 39, .07); --shadow: 0 18px 50px rgba(28, 54, 39, .1);
 }
 .dark {
-  --background: 154 23% 11%; --foreground: 55 27% 93%; --border: 150 15% 27%;
-  --card: 153 21% 15%; --card-foreground: 55 27% 93%; --input: 150 15% 33%; --ring: 85 44% 68%;
-  --primary: 85 38% 64%; --primary-foreground: 154 30% 12%; --secondary: 152 18% 24%; --muted: 152 18% 21%; --muted-foreground: 145 10% 68%;
+  --background: 149 20% 14%; --foreground: 94 24% 92%; --border: 146 14% 30%;
+  --card: 149 18% 18%; --card-foreground: 94 24% 92%; --input: 146 14% 34%; --ring: 112 35% 66%;
+  --primary: 119 35% 65%; --primary-foreground: 149 28% 14%; --secondary: 145 17% 26%; --muted: 145 17% 23%; --muted-foreground: 130 10% 69%;
 }
-@layer base { * { @apply border-border; } body { @apply font-sans antialiased bg-background text-foreground; margin: 0; } }
+@layer base { * { @apply border-border; } body { @apply font-sans antialiased bg-background text-foreground; margin: 0; font-family: 'Source Sans 3', sans-serif; } }
 * { box-sizing: border-box; }
 body { min-width: 320px; }
 button, input, select, textarea { font: inherit; }
@@ -242,6 +242,62 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .toast.error { background:#a7433d; }
 .request-count { margin-left:auto;color:#8a9689;font:500 10px 'IBM Plex Mono'; }
 
+/* Maktab Print — airy herb-and-paper palette with warm editorial typography. */
+body,button,input,select,textarea { font-family:'Source Sans 3',sans-serif; }
+h1,h2,h3,.brand-name,.page-title,.detail-title,.form-section-title,.panel-title,.stat-value,.step-card h3,.cta-panel h2,.auth-card h1,.success-page h2,.hero-title,.section-intro h2,.sheet-title,.band-number,.brand-mark { font-family:'Fraunces',Georgia,serif !important; }
+.hero-tag,.sheet-top,.sheet-stamp,.hero-caption,.eyebrow,.step-no,.side-label,.date-label,.status,.request-count,.reference-box,.auth-ornament,.home-steps b { font-family:'Source Sans 3',sans-serif !important; }
+.avatar { font-family:'Source Sans 3',sans-serif !important; }
+.public-page,.request-page,.auth-page,.app-frame { background:#f1f6eb;color:#294538; }
+.panel,.stat-card,.request-card,.auth-card,.form-panel { background:#fbfdf7;border-color:#dce8d6; }
+.button { background:#528865;color:#fbfff8;box-shadow:0 4px 12px #406e4a1b; }
+.button:hover { background:#426f53; }
+.button.secondary { background:#e4efdd;color:#365d43; }
+.button.ghost { color:#42664d;border-color:#d2e1ce; }
+.sidebar { background:#e6f0df;color:#294a36;border-right:1px solid #d4e3ce; }
+.sidebar .brand-sub,.profile-text span { color:#6c8972; }
+.side-label { color:#7a9a7e; }
+.nav-link { color:#55765d; }
+.nav-link:hover { background:#dcebd6;color:#345b42; }
+.nav-link.active { background:#cde3c3;color:#315d40;box-shadow:none; }
+.branch-chip,.profile-mini { border-color:#cedfca;color:#718b72; }
+.branch-chip strong,.profile-text strong { color:#345640; }
+.sidebar .icon-button { background:#f6fbf2;color:#4e7155;border-color:#cfdfca; }
+.topbar { background:#f6f9f1eb;border-color:#dfe9d9; }
+.hero-title,.section-intro h2 { color:#294b38; }
+.hero-title em { color:#76a17a; }
+.hero-copy,.section-intro p { color:#687f6c; }
+.public-band { background:#e2efdc;color:#315740;border-top:1px solid #d9e8d3;border-bottom:1px solid #d9e8d3; }
+.band-number { color:#638e68; }
+.band-label { color:#617d64; }
+.public-footer { color:#748a75;border-color:#dce8d6;font-size:12px; }
+.home-audience { color:#66836a;font-size:13px;font-weight:700;letter-spacing:.03em; }
+.home-steps { display:flex;align-items:center;gap:13px;margin-top:37px;color:#6a846b;font-size:12px; }
+.home-steps span { display:inline-flex;align-items:center;gap:7px; }
+.home-steps b { color:#4e805a;font:500 10px 'Source Sans 3',sans-serif; }
+.home-steps i { width:24px;height:1px;background:#cbdcc6; }
+
+/* The homepage is a direct dispatch point, not a product brochure. */
+.public-nav { height:78px;max-width:1320px; }
+.public-links { gap:12px; }
+.public-hero { min-height:580px;padding-top:48px;padding-bottom:60px;grid-template-columns:1.08fr .92fr;gap:4vw;max-width:1320px; }
+.hero-tag { background:#e6f1df;border-color:#d7e7d1;color:#4e7959;font-size:10px;letter-spacing:.2px;text-transform:none;padding:9px 13px; }
+.hero-tag i { background:#83ae82; }
+.hero-title { font-size:clamp(52px,6.5vw,88px);line-height:1.03;letter-spacing:-2.4px;margin:24px 0 18px; }
+.hero-copy { max-width:390px;font-size:17px;line-height:1.55;margin-bottom:30px; }
+.hero-actions { gap:12px; }
+.hero-actions .button { min-height:48px;padding:13px 19px;font-size:14px;border-radius:10px; }
+.hero-visual { height:440px; }
+.visual-orbit { width:390px;height:390px;border-color:#d3e4ce; }
+.visual-orbit:before,.visual-orbit:after { border-color:#d9e8d4; }
+.print-sheet { width:260px;min-height:325px;padding:27px;background:#fffef9;box-shadow:0 28px 65px #3d66401a; }
+.sheet-title { font-family:'Fraunces',Georgia,serif;font-size:23px; }
+.sheet-stamp { background:#dcefd5;border-color:#c1dfb8;color:#4d7954; }
+.hero-caption { bottom:14px;left:2%;color:#79907a;font-size:9px;letter-spacing:.6px; }
+.public-band { padding:22px max(8vw,30px); }
+.band-item { gap:11px; }
+.band-number { font-size:24px; }
+.band-label { font-size:12px; }
+
 @keyframes shimmer { to { background-position:-200% 0; } }
 @keyframes rise { from { opacity:0;transform:translateY(10px); } to { opacity:1;transform:translateY(0); } }
 @keyframes float-in { from { opacity:0;transform:translateY(14px) rotate(2deg); } to { opacity:1;transform:translateY(0) rotate(5deg); } }
@@ -254,5 +310,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .stats-grid{gap:8px}.stat-card{padding:14px}.stat-value{font-size:23px}.request-row{grid-template-columns:4px 1fr auto;gap:11px}.request-row .request-col{display:none}.request-card{padding:14px;gap:11px}.request-card .req-meta{gap:6px}.request-layout,.detail-grid{grid-template-columns:1fr}.form-side{order:2}.detail-side{order:2}.form-panel{padding:18px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}
   .public-nav{height:67px;padding:0 19px}.public-links{gap:12px}.public-links a:not(.button){display:none}.public-hero{grid-template-columns:1fr;padding:42px 24px 38px;gap:5px}.hero-title{font-size:51px;letter-spacing:-2.9px}.hero-copy{font-size:13px}.hero-visual{height:330px;transform:scale(.86);margin:-4px 0}.visual-orbit{width:310px;height:310px}.print-sheet{transform:rotate(4deg) scale(.9)}.public-band{padding:23px 25px;display:grid;grid-template-columns:1fr 1fr}.band-number{font-size:24px}.section{padding:62px 24px}.steps-grid{grid-template-columns:1fr}.step-card{min-height:145px}.step-card h3{margin-top:18px}.cta-panel{padding:25px;align-items:flex-start;flex-direction:column}.public-cta{padding:0 24px 57px}.public-footer{padding:20px 24px;gap:12px;flex-direction:column}
   .request-page{padding:0 16px 40px}.request-top{height:68px}.request-shell{margin-top:21px}.request-layout{gap:13px}.auth-brand{top:18px;left:19px}.auth-page{padding:75px 15px 20px}.auth-card{padding:24px 20px}
+}
+@media(max-width:760px) {
+  .public-nav { justify-content:space-between; }
+  .home-audience { font-size:12px; }
+  .public-hero { padding-top:44px;padding-bottom:22px; }
+  .home-steps { margin-top:26px; }
+  .hero-visual { transform:scale(.86);margin:-3px 0 -10px; }
+  .public-footer { padding:17px 25px;gap:4px; }
 }
 @media(max-width:430px) { .stats-grid{grid-template-columns:1fr 1fr}.toolbar{align-items:stretch}.searchbox{min-width:100%}.filter-select{flex:1}.hero-title{font-size:43px}.hero-visual{margin-left:-18px;margin-right:-18px}.detail-facts{grid-template-columns:1fr 1fr}.hero-caption{left:0;right:0;bottom:6px;z-index:2;text-align:center;font-size:8px;letter-spacing:.45px;white-space:nowrap}.request-top>.button{padding:9px 11px;font-size:10px} }
