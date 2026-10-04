@@ -22,11 +22,13 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/db/src/schema/` — PostgreSQL table definitions.
+- `lib/db/scripts/migrate-printer-accounts.mjs` — one-time transfer of printer credentials into Neon as password hashes.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Teachers can submit print requests without accounts; printer staff sign in and only access their assigned branch.
+- Printer account credentials are stored in Neon; passwords are salted scrypt hashes, not plaintext.
 
 ## Product
 

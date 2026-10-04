@@ -45,14 +45,12 @@ import {
 import type { Response } from "express";
 import type { Request } from "express";
 import {
-  PRINTER_BRANCHES,
   clearPrinterSession,
   ensurePrinterBranches,
-  findPrinterAccount,
+  findPrinterAccountForBranch,
   getPrinterProfile,
   getSchoolProfile,
   hasBranchAccess,
-  isPrinterCredentialConfigured,
   isAdmin,
   setPrinterSession,
   type SchoolProfile,
@@ -221,16 +219,12 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     res.status(429).json({ error: "Urinishlar ko‘payib ketdi. 15 daqiqadan so‘ng qayta urinib ko‘ring." });
     return;
   }
-  if (!findPrinterAccount(parsed.data.username)) {
-    recordLoginFailure(ip);
-    res.status(401).json({ error: "Login yoki parol noto‘g‘ri." });
-    return;
-  }
-  if (!isPrinterCredentialConfigured(parsed.data.username)) {
-    res.status(503).json({ error: "Bu filial hisobi hozircha sozlanmagan." });
-    return;
-  }
-  if (!verifyPrinterCredentials(parsed.data.username, parsed.data.password)) {
+  if (
+    !(await verifyPrinterCredentials(
+      parsed.data.username,
+      parsed.data.password,
+    ))
+  ) {
     recordLoginFailure(ip);
     res.status(401).json({ error: "Login yoki parol noto‘g‘ri." });
     return;
@@ -592,11 +586,9 @@ router.post("/print-requests", async (req, res): Promise<void> => {
     return request;
   });
 
-  const branchAccount = PRINTER_BRANCHES.find(
-    (account) => account.branchName === branch.name,
-  );
-  const profile = branchAccount
-    ? await getPrinterProfile(branchAccount.username)
+  const printerUsername = await findPrinterAccountForBranch(branch.id);
+  const profile = printerUsername
+    ? await getPrinterProfile(printerUsername)
     : null;
   if (!profile) {
     res.status(500).json({ error: "So‘rov saqlandi, lekin uni qaytarib bo‘lmadi." });

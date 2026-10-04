@@ -2,6 +2,7 @@ export * from "./branches";
 export * from "./school-users";
 export * from "./print-requests";
 export * from "./uploaded-files";
+export * from "./printer-accounts";
 // export * from "./posts";
 //
 // Each model/table should ideally be split into different files.
