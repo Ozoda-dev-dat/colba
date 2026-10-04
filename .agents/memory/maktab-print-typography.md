@@ -1,10 +1,10 @@
 ---
 name: Maktab Print typography
-description: The typography pairing selected for Maktab Print.
+description: The font-family rule selected for Maktab Print.
 ---
 
-Use Lora for headings and DM Sans for body and interface text throughout Maktab Print.
+Use `sans-serif` for all text throughout Maktab Print, including headings and form controls.
 
-**Why:** The user selected this pairing from typography previews for the teacher request form.
+**Why:** The user explicitly requested `font-family: sans-serif` for the whole site.
 
-**How to apply:** Keep the pairing consistent across public and authenticated screens unless the user asks to change it.
+**How to apply:** Keep all public and authenticated screens on generic sans-serif unless the user asks to change it.
