@@ -101,6 +101,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .form-section-title { font:700 15px Manrope;color:#294631;margin:0 0 5px; }
 .form-section-copy { font-size:11px;color:#899487;margin:0 0 22px; }
 .form-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+.request-fields { border:0;margin:0;padding:0;min-width:0; }
 .field { display:flex;flex-direction:column;gap:7px;min-width:0; }
 .field.full { grid-column:1/-1; }
 .field label { font-size:11px;font-weight:700;color:#455d49; }
@@ -110,12 +111,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .field-hint { font-size:10px;color:#96a095; }
 .drop-zone { border:1px dashed #9caf93;background:#f7f8f0;border-radius:10px;padding:22px 15px;text-align:center;color:#6d816e;cursor:pointer;transition:background .18s,border-color .18s; }
 .drop-zone:hover { background:#eff3e8;border-color:#6d8d65; }
+.drop-zone.disabled { opacity:.7;cursor:wait;pointer-events:none; }
 .drop-zone svg { width:22px;height:22px;color:#577854;margin:0 auto 8px; }
 .drop-zone strong { display:block;font-size:12px;color:#3d5a42; }
 .file-list { display:grid;gap:7px;margin-top:10px; }
 .file-line { display:flex;align-items:center;gap:9px;background:#f5f6ef;border-radius:8px;padding:9px 11px;font-size:11px;color:#526752; }
 .file-line span { flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .file-line button { border:0;background:none;color:#a44c40;cursor:pointer;display:grid;place-items:center; }
+.upload-progress { display:grid;gap:8px;margin-top:18px;color:#5e765f;font-size:11px; }
+.progress-track { height:6px;overflow:hidden;background:#e6ecdf;border-radius:99px; }
+.progress-track span { display:block;height:100%;background:#6e9a70;border-radius:inherit;transition:width .2s ease; }
 .form-submit { display:flex;justify-content:flex-end;margin-top:20px; }
 .form-side { padding:20px;background:#e8eddd;border-radius:12px;border:1px solid #dce5d1; }
 .form-side h3 { font:700 13px Manrope;margin:0 0 9px;color:#36563b; }

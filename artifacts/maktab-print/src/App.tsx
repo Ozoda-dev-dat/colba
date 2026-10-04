@@ -53,6 +53,10 @@ function urgency(value: string) {
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'MP';
 }
+function localDateTimeValue(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 function Brand() {
   return <div className="brand"><div className="brand-mark">mp</div><div><div className="brand-name">maktab print</div><div className="brand-sub">Maktab uchun, har kuni</div></div></div>;
 }
@@ -110,8 +114,10 @@ function PublicRequest() {
   const [error, setError] = useState('');
   const [doneId, setDoneId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ phase: 'uploading' | 'saving'; current: number; total: number } | null>(null);
 
   function addFiles(incoming: File[]) {
+    if (busy) return;
     const combined = [...files, ...incoming];
     if (combined.length > 8) { setError('Ko‘pi bilan 8 ta fayl biriktirish mumkin.'); return; }
     if (combined.some((file) => !fileType(file) || file.size > 15 * 1024 * 1024)) {
@@ -137,13 +143,16 @@ function PublicRequest() {
     setBusy(true);
     try {
       const attachments: AttachmentInput[] = [];
-      for (const file of files) {
+      setUploadProgress({ phase: 'uploading', current: 0, total: files.length });
+      for (const [index, file] of files.entries()) {
         const metadata = { name: file.name, size: file.size, contentType: fileType(file) };
         const upload = await uploadUrl.mutateAsync({ data: metadata });
         const response = await fetch(upload.uploadURL, { method: 'PUT', headers: { 'Content-Type': metadata.contentType }, body: file });
         if (!response.ok) throw new Error(`${file.name} faylini yuklab bo‘lmadi.`);
         attachments.push({ ...metadata, objectPath: upload.objectPath, ownerToken: upload.ownerToken });
+        setUploadProgress({ phase: 'uploading', current: index + 1, total: files.length });
       }
+      setUploadProgress({ phase: 'saving', current: files.length, total: files.length });
       const result = await createRequest.mutateAsync({ data: {
         requesterName: requesterName.trim(), title: title.trim(), branchId: Number(branchId),
         copies: Number(copies), dueAt: new Date(dueAt).toISOString(),
@@ -152,9 +161,9 @@ function PublicRequest() {
       setDoneId(result.id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'So‘rov yuborilmadi. Qayta urinib ko‘ring.');
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setUploadProgress(null); }
   }
-  const minDate = new Date(Date.now() - 60_000).toISOString().slice(0, 16);
+  const minDate = localDateTimeValue(new Date(Math.ceil((Date.now() + 60_000) / 60_000) * 60_000));
   return <main className="request-page">
     <header className="request-top"><Link href="/" aria-label="Maktab Print bosh sahifa"><Brand /></Link><Link href="/" className="button ghost"><ArrowLeft /> Bosh sahifa</Link></header>
     <div className="request-shell">
@@ -162,17 +171,18 @@ function PublicRequest() {
         <div className="request-intro"><div className="eyebrow">O‘qituvchilar uchun · kirish talab qilinmaydi</div><h1>Bosma so‘rovi</h1><p>Qayerga, qachon va nechta nusxa kerakligini belgilang. Qolganini filial bosmaxonasi bajaradi.</p></div>
         <div className="request-layout"><form className="panel form-panel" onSubmit={submit}>
           <h2 className="form-section-title">So‘rov ma’lumotlari</h2><p className="form-section-copy">Yulduzcha bilan belgilangan maydonlar majburiy.</p>
-          <div className="form-grid">
+          <fieldset className="request-fields" disabled={busy}><div className="form-grid">
             <div className="field"><label htmlFor="teacher-name">O‘qituvchi ismi *</label><input id="teacher-name" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} placeholder="Ism va familiya" minLength={2} maxLength={120} required data-testid="input-requester-name" /></div>
             <div className="field"><label htmlFor="branch">Filial *</label>{branches.isLoading ? <div className="skeleton" style={{ height: 42 }} /> : branches.isError ? <div><div className="inline-error">Filiallar yuklanmadi.</div><Button type="button" className="secondary" onClick={() => branches.refetch()}>Qayta yuklash</Button></div> : <select id="branch" value={branchId} onChange={(e) => setBranchId(e.target.value)} required data-testid="select-request-branch"><option value="" disabled>Filialni tanlang</option>{(branches.data ?? []).map((branch: Branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select>}</div>
             <div className="field full"><label htmlFor="material-title">Material sarlavhasi *</label><input id="material-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Masalan: 7-sinf matematika — kasrlar" minLength={2} maxLength={160} required data-testid="input-request-title" /></div>
             <div className="field"><label htmlFor="request-copies">Nusxalar soni *</label><input id="request-copies" type="number" min="1" max="5000" value={copies} onChange={(e) => setCopies(e.target.value)} required data-testid="input-request-copies" /></div>
             <div className="field"><label htmlFor="request-due">Kerak bo‘ladigan sana va vaqt *</label><input id="request-due" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} min={minDate} required data-testid="input-request-deadline" /></div>
-            <div className="field full"><label>Material fayli * <span className="field-hint">— 1–8 ta fayl</span></label><label className="drop-zone" htmlFor="request-files" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}><Upload /><strong>Faylni tanlang yoki shu yerga olib keling</strong><span className="field-hint">PDF, JPG, PNG, WEBP yoki Word · 15 MB gacha</span><input id="request-files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" onChange={onPick} hidden data-testid="input-request-files" /></label>{files.length > 0 && <div className="file-list">{files.map((file, index) => <div className="file-line" key={`${file.name}-${index}`}><FileText size={15} /><span>{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</span><button type="button" aria-label={`${file.name} faylini olib tashlash`} onClick={() => setFiles(files.filter((_, i) => i !== index))}><X size={15} /></button></div>)}</div>}</div>
+            <div className="field full"><label>Material fayli * <span className="field-hint">— 1–8 ta fayl</span></label><label className={`drop-zone ${busy ? 'disabled' : ''}`} htmlFor="request-files" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}><Upload /><strong>Faylni tanlang yoki shu yerga olib keling</strong><span className="field-hint">PDF, JPG, PNG, WEBP yoki Word · 15 MB gacha</span><input id="request-files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" onChange={onPick} hidden data-testid="input-request-files" /></label>{files.length > 0 && <div className="file-list">{files.map((file, index) => <div className="file-line" key={`${file.name}-${index}`}><FileText size={15} /><span>{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</span><button type="button" aria-label={`${file.name} faylini olib tashlash`} onClick={() => setFiles(files.filter((_, i) => i !== index))}><X size={15} /></button></div>)}</div>}</div>
             <div className="field full"><label htmlFor="request-note">Bosmaxona uchun izoh <span className="field-hint">— ixtiyoriy</span></label><textarea id="request-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} placeholder="Qog‘oz turi, rangli bosma yoki boshqa ko‘rsatmalar..." data-testid="input-request-note" /></div>
-          </div>
+          </div></fieldset>
           {error && <p role="alert" className="inline-error">{error}</p>}
-          <div className="form-submit"><Button type="submit" disabled={busy || branches.isLoading || branches.isError || uploadUrl.isPending || createRequest.isPending} data-testid="button-submit-request">{busy ? 'Yuborilmoqda…' : 'So‘rovni yuborish'} <ArrowRight /></Button></div>
+          {uploadProgress && <div className="upload-progress" role="status" aria-live="polite"><div>{uploadProgress.phase === 'saving' ? 'So‘rov saqlanmoqda…' : `Fayllar yuklanmoqda · ${uploadProgress.current} / ${uploadProgress.total}`}</div><div className="progress-track" role="progressbar" aria-label="Yuborish jarayoni" aria-valuemin={0} aria-valuemax={uploadProgress.total} aria-valuenow={uploadProgress.phase === 'saving' ? uploadProgress.total : uploadProgress.current}><span style={{ width: `${uploadProgress.phase === 'saving' ? 100 : uploadProgress.current / uploadProgress.total * 100}%` }} /></div></div>}
+          <div className="form-submit"><Button type="submit" disabled={busy || branches.isLoading || branches.isError || uploadUrl.isPending || createRequest.isPending} data-testid="button-submit-request">{busy ? uploadProgress?.phase === 'saving' ? 'Saqlanmoqda…' : `Yuklanmoqda ${uploadProgress?.current ?? 0}/${uploadProgress?.total ?? files.length}` : 'So‘rovni yuborish'} {busy ? <Upload /> : <ArrowRight />}</Button></div>
         </form>
         <aside className="form-side"><h3>Yuborishdan oldin</h3><p>So‘rovingiz faqat tanlangan filialning bosmaxona navbatiga qo‘shiladi.</p><div className="side-rule" /><div className="form-note"><ShieldCheck /><span>Hisob ochish shart emas. Ismingiz so‘rov ma’lumotlari uchun kerak.</span></div><div className="form-note"><Files /><span>Fayllar xususiy saqlanadi va faqat ruxsatli xodimlarga ochiladi.</span></div><div className="form-note"><Clock3 /><span>Kerakli vaqtni bosmaxona ishni rejalashtirishi uchun aniq belgilang.</span></div></aside></div>
       </>}
