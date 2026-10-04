@@ -32,7 +32,7 @@ paths:
     get:
       operationId: getCurrentUser
       tags: [school]
-      summary: Get the signed-in user's school profile
+      summary: Get the signed-in printer's profile
       responses:
         "200":
           description: Current profile
@@ -42,6 +42,58 @@ paths:
                 $ref: "#/components/schemas/UserProfile"
         "401":
           description: Sign-in required
+  /auth/login:
+    post:
+      operationId: printerLogin
+      tags: [school]
+      summary: Sign in a printer employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrinterLoginInput"
+      responses:
+        "200":
+          description: Printer session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: Invalid login input
+        "401":
+          description: Login or password is incorrect
+  /auth/logout:
+    post:
+      operationId: printerLogout
+      tags: [school]
+      summary: End the printer session
+      responses:
+        "200":
+          description: Session ended
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+  /public/branches:
+    get:
+      operationId: listPublicBranches
+      tags: [school]
+      summary: List the three branches available for teacher requests
+      responses:
+        "200":
+          description: Available branches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Branch"
   /dashboard:
     get:
       operationId: getDashboard
@@ -154,7 +206,7 @@ paths:
     post:
       operationId: createPrintRequest
       tags: [school]
-      summary: Submit a print request for the teacher's assigned branch
+      summary: Submit a teacher print request without requiring an account
       requestBody:
         required: true
         content:
@@ -224,7 +276,7 @@ paths:
     post:
       operationId: requestUploadUrl
       tags: [storage]
-      summary: Request a private upload URL for an attachment
+      summary: Request a private upload URL for an unauthenticated teacher submission
       requestBody:
         required: true
         content:
@@ -315,6 +367,18 @@ components:
           type: [string, "null"]
         isActive:
           type: boolean
+    PrinterLoginInput:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 80
+        password:
+          type: string
+          minLength: 1
+          maxLength: 200
     SchoolUser:
       type: object
       required: [clerkId, fullName, email, role, branchId, branchName, isActive, createdAt]
@@ -364,7 +428,7 @@ components:
           type: integer
     AttachmentInput:
       type: object
-      required: [objectPath, name, size, contentType]
+      required: [objectPath, name, size, contentType, ownerToken]
       properties:
         objectPath:
           type: string
@@ -379,6 +443,9 @@ components:
         contentType:
           type: string
           minLength: 1
+        ownerToken:
+          type: string
+          minLength: 20
     AttachmentInfo:
       type: object
       required: [fileIndex, name, size, contentType]
@@ -423,12 +490,19 @@ components:
             $ref: "#/components/schemas/AttachmentInfo"
     PrintRequestInput:
       type: object
-      required: [title, copies, dueAt, attachments]
+      required: [title, requesterName, branchId, copies, dueAt, attachments]
       properties:
         title:
           type: string
           minLength: 2
           maxLength: 160
+        requesterName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        branchId:
+          type: integer
+          minimum: 1
         copies:
           type: integer
           minimum: 1
@@ -467,11 +541,13 @@ components:
           minLength: 1
     UploadUrl:
       type: object
-      required: [uploadURL, objectPath]
+      required: [uploadURL, objectPath, ownerToken]
       properties:
         uploadURL:
           type: string
           format: uri
         objectPath:
+          type: string
+        ownerToken:
           type: string
 

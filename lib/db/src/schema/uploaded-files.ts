@@ -11,9 +11,10 @@ import { schoolUsersTable } from "./school-users";
 export const uploadedFilesTable = pgTable("uploaded_files", {
   id: serial("id").primaryKey(),
   objectPath: text("object_path").notNull().unique(),
-  ownerClerkId: text("owner_clerk_id")
-    .notNull()
-    .references(() => schoolUsersTable.clerkId, { onDelete: "cascade" }),
+  ownerClerkId: text("owner_clerk_id").references(() => schoolUsersTable.clerkId, {
+    onDelete: "set null",
+  }),
+  uploadToken: text("upload_token").unique(),
   requestId: integer("request_id").references(() => printRequestsTable.id, {
     onDelete: "cascade",
   }),

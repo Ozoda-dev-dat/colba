@@ -14,6 +14,13 @@ export interface PrintRequestInput {
      */
   title: string;
   /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  requesterName: string;
+  /** @minimum 1 */
+  branchId: number;
+  /**
      * @minimum 1
      * @maximum 5000
      */

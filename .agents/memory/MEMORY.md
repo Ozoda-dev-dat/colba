@@ -1,0 +1,1 @@
+- [Maktab Print access model](maktab-print-access.md) — teachers submit anonymously; only branch-scoped printer accounts can access queues and files.

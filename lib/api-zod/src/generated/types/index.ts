@@ -13,6 +13,8 @@ export * from './branchInput';
 export * from './dashboardSummary';
 export * from './healthStatus';
 export * from './listPrintRequestsParams';
+export * from './printerLoginInput';
+export * from './printerLogout200';
 export * from './printRequest';
 export * from './printRequestInput';
 export * from './requestStatus';

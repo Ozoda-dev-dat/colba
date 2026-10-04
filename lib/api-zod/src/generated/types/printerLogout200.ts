@@ -6,8 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface UploadUrl {
-  uploadURL: string;
-  objectPath: string;
-  ownerToken: string;
-}
+export type PrinterLogout200 = {
+  success: boolean;
+};

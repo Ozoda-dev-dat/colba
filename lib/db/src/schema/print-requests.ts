@@ -23,13 +23,15 @@ export const printRequestsTable = pgTable("print_requests", {
   copies: integer("copies").notNull(),
   dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
   note: text("note"),
+  requesterName: text("requester_name"),
   status: requestStatusEnum("status").notNull().default("queued"),
   branchId: integer("branch_id")
     .notNull()
     .references(() => branchesTable.id, { onDelete: "restrict" }),
-  requestedByUserId: text("requested_by_user_id")
-    .notNull()
-    .references(() => schoolUsersTable.clerkId, { onDelete: "restrict" }),
+  requestedByUserId: text("requested_by_user_id").references(
+    () => schoolUsersTable.clerkId,
+    { onDelete: "set null" },
+  ),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

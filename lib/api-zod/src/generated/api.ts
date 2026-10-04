@@ -18,7 +18,7 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary Get the signed-in user's school profile
+ * @summary Get the signed-in printer's profile
  */
 export const GetCurrentUserResponse = zod.object({
   "clerkId": zod.string(),
@@ -29,6 +29,49 @@ export const GetCurrentUserResponse = zod.object({
   "branchName": zod.string().nullable(),
   "isActive": zod.boolean()
 })
+
+
+/**
+ * @summary Sign in a printer employee
+ */
+export const printerLoginBodyUsernameMax = 80;
+
+export const printerLoginBodyPasswordMax = 200;
+
+
+
+export const PrinterLoginBody = zod.object({
+  "username": zod.string().min(1).max(printerLoginBodyUsernameMax),
+  "password": zod.string().min(1).max(printerLoginBodyPasswordMax)
+})
+
+export const PrinterLoginResponse = zod.object({
+  "clerkId": zod.string(),
+  "fullName": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['admin', 'teacher', 'printer']),
+  "branchId": zod.number().int().nullable(),
+  "branchName": zod.string().nullable(),
+  "isActive": zod.boolean()
+})
+
+
+/**
+ * @summary End the printer session
+ */
+export const PrinterLogoutResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary List the three branches available for teacher requests
+ */
+export const ListPublicBranchesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+})
+export const ListPublicBranchesResponse = zod.array(ListPublicBranchesResponseItem)
 
 
 /**
@@ -142,10 +185,14 @@ export const ListPrintRequestsResponse = zod.array(ListPrintRequestsResponseItem
 
 
 /**
- * @summary Submit a print request for the teacher's assigned branch
+ * @summary Submit a teacher print request without requiring an account
  */
 export const createPrintRequestBodyTitleMin = 2;
 export const createPrintRequestBodyTitleMax = 160;
+
+export const createPrintRequestBodyRequesterNameMin = 2;
+export const createPrintRequestBodyRequesterNameMax = 120;
+
 
 export const createPrintRequestBodyCopiesMax = 5000;
 
@@ -156,12 +203,16 @@ export const createPrintRequestBodyAttachmentsItemNameMax = 255;
 
 
 
+export const createPrintRequestBodyAttachmentsItemOwnerTokenMin = 20;
+
 export const createPrintRequestBodyAttachmentsMax = 8;
 
 
 
 export const CreatePrintRequestBody = zod.object({
   "title": zod.string().min(createPrintRequestBodyTitleMin).max(createPrintRequestBodyTitleMax),
+  "requesterName": zod.string().min(createPrintRequestBodyRequesterNameMin).max(createPrintRequestBodyRequesterNameMax),
+  "branchId": zod.number().int().min(1),
   "copies": zod.number().int().min(1).max(createPrintRequestBodyCopiesMax),
   "dueAt": zod.coerce.date(),
   "note": zod.string().max(createPrintRequestBodyNoteMax).nullish(),
@@ -169,7 +220,8 @@ export const CreatePrintRequestBody = zod.object({
   "objectPath": zod.string().min(1),
   "name": zod.string().min(1).max(createPrintRequestBodyAttachmentsItemNameMax),
   "size": zod.number().int().min(1),
-  "contentType": zod.string().min(1)
+  "contentType": zod.string().min(1),
+  "ownerToken": zod.string().min(createPrintRequestBodyAttachmentsItemOwnerTokenMin)
 })).min(1).max(createPrintRequestBodyAttachmentsMax)
 })
 
@@ -252,7 +304,7 @@ export const UpdatePrintRequestStatusResponse = zod.object({
 
 
 /**
- * @summary Request a private upload URL for an attachment
+ * @summary Request a private upload URL for an unauthenticated teacher submission
  */
 export const requestUploadUrlBodyNameMax = 255;
 
@@ -268,7 +320,8 @@ export const RequestUploadUrlBody = zod.object({
 
 export const RequestUploadUrlResponse = zod.object({
   "uploadURL": zod.string().url(),
-  "objectPath": zod.string()
+  "objectPath": zod.string(),
+  "ownerToken": zod.string()
 })
 
 

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { createHash, randomBytes } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
 import {
   GetPrintRequestFileParams,
@@ -24,6 +25,11 @@ const ALLOWED_TYPES = new Set([
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
+const uploadAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function hashUploadToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 async function activeProfile(
   req: Request,
@@ -42,12 +48,14 @@ async function activeProfile(
 }
 
 router.post("/storage/uploads/request-url", async (req, res): Promise<void> => {
-  const profile = await activeProfile(req, res);
-  if (!profile) return;
-  if (profile.role !== "teacher" || profile.branchId === null) {
-    res.status(403).json({
-      error: "Fayl yuklash uchun ustoz roli va filial biriktirilgan bo‘lishi kerak.",
-    });
+  const now = Date.now();
+  for (const [key, attempt] of uploadAttempts) {
+    if (attempt.resetAt <= now) uploadAttempts.delete(key);
+  }
+  const ip = req.ip || "unknown";
+  const current = uploadAttempts.get(ip);
+  if (current && current.count >= 30 && current.resetAt > now) {
+    res.status(429).json({ error: "Juda ko‘p fayl yuklandi. Keyinroq qayta urinib ko‘ring." });
     return;
   }
   const parsed = RequestUploadUrlBody.safeParse(req.body);
@@ -68,9 +76,17 @@ router.post("/storage/uploads/request-url", async (req, res): Promise<void> => {
   }
 
   const upload = await objectStorageService.getObjectEntityUploadUrlWithPath();
+  const ownerToken = randomBytes(32).toString("hex");
+  const currentAttempt = uploadAttempts.get(ip);
+  if (currentAttempt && currentAttempt.resetAt > now) {
+    currentAttempt.count += 1;
+  } else {
+    uploadAttempts.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
+  }
   await db.insert(uploadedFilesTable).values({
     objectPath: upload.objectPath,
-    ownerClerkId: profile.clerkId,
+    ownerClerkId: null,
+    uploadToken: hashUploadToken(ownerToken),
     name: parsed.data.name,
     size: parsed.data.size,
     contentType,
@@ -79,6 +95,7 @@ router.post("/storage/uploads/request-url", async (req, res): Promise<void> => {
     RequestUploadUrlResponse.parse({
       uploadURL: upload.uploadURL,
       objectPath: upload.objectPath,
+      ownerToken,
     }),
   );
 });
@@ -129,6 +146,7 @@ router.get(
     const [metadata] = await objectFile.getMetadata();
     const safeName = encodeURIComponent(attachment.name).replace(/'/g, "%27");
     res.setHeader("Content-Type", attachment.contentType);
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename*=UTF-8''${safeName}`,

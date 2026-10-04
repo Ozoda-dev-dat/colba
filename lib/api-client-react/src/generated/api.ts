@@ -27,6 +27,8 @@ import type {
   ListPrintRequestsParams,
   PrintRequest,
   PrintRequestInput,
+  PrinterLoginInput,
+  PrinterLogout200,
   RequestStatusInput,
   SchoolUser,
   UploadUrl,
@@ -149,7 +151,7 @@ export const getGetCurrentUserUrl = () => {
 }
 
 /**
- * @summary Get the signed-in user's school profile
+ * @summary Get the signed-in printer's profile
  */
 export const getCurrentUser = async ( options?: Parameters<typeof customFetch>[1]): Promise<UserProfile> => {
 
@@ -196,7 +198,7 @@ export type GetCurrentUserQueryError = ErrorType<void>
 
 
 /**
- * @summary Get the signed-in user's school profile
+ * @summary Get the signed-in printer's profile
  */
 
 export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorType<void>>(
@@ -205,6 +207,245 @@ export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUs
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetCurrentUserQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPrinterLoginUrl = () => {
+
+
+
+
+  return `/api/auth/login`
+}
+
+/**
+ * @summary Sign in a printer employee
+ */
+export const printerLogin = async (printerLoginInput: PrinterLoginInput, options?: Parameters<typeof customFetch>[1]): Promise<UserProfile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<UserProfile>(getPrinterLoginUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(printerLoginInput)
+  }
+);}
+
+
+
+
+
+export const getPrinterLoginMutationKey = () => ['printerLogin'] as const;
+
+export const getPrinterLoginMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof printerLogin>>, TError,PrinterLoginMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof printerLogin>>, TError,PrinterLoginMutationVariables, TContext> => {
+
+const mutationKey = getPrinterLoginMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof printerLogin>>, PrinterLoginMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  printerLogin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PrinterLoginMutationResult = NonNullable<Awaited<ReturnType<typeof printerLogin>>>
+    export type PrinterLoginMutationBody = BodyType<PrinterLoginInput>
+    export type PrinterLoginMutationError = ErrorType<void>
+    export type PrinterLoginMutationVariables = {data: BodyType<PrinterLoginInput>}
+
+    /**
+ * @summary Sign in a printer employee
+ */
+export const usePrinterLogin = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof printerLogin>>, TError,PrinterLoginMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof printerLogin>>,
+        TError,
+        PrinterLoginMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPrinterLoginMutationOptions(options));
+    }
+
+export const getPrinterLogoutUrl = () => {
+
+
+
+
+  return `/api/auth/logout`
+}
+
+/**
+ * @summary End the printer session
+ */
+export const printerLogout = async ( options?: Parameters<typeof customFetch>[1]): Promise<PrinterLogout200> => {
+
+  return customFetch<PrinterLogout200>(getPrinterLogoutUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPrinterLogoutMutationKey = () => ['printerLogout'] as const;
+
+export const getPrinterLogoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof printerLogout>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof printerLogout>>, TError,void, TContext> => {
+
+const mutationKey = getPrinterLogoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof printerLogout>>, void> = () => {
+
+
+          return  printerLogout(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PrinterLogoutMutationResult = NonNullable<Awaited<ReturnType<typeof printerLogout>>>
+
+    export type PrinterLogoutMutationError = ErrorType<unknown>
+
+
+    /**
+ * @summary End the printer session
+ */
+export const usePrinterLogout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof printerLogout>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof printerLogout>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPrinterLogoutMutationOptions(options));
+    }
+
+export const getListPublicBranchesUrl = () => {
+
+
+
+
+  return `/api/public/branches`
+}
+
+/**
+ * @summary List the three branches available for teacher requests
+ */
+export const listPublicBranches = async ( options?: Parameters<typeof customFetch>[1]): Promise<Branch[]> => {
+
+  return customFetch<Branch[]>(getListPublicBranchesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPublicBranchesQueryKey = () => {
+    return [
+    `/api/public/branches`
+    ] as const;
+    }
+
+
+export const getListPublicBranchesQueryOptions = <TData = Awaited<ReturnType<typeof listPublicBranches>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPublicBranches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPublicBranchesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPublicBranches>>> = ({ signal }) => listPublicBranches({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPublicBranches>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPublicBranchesQueryResult = NonNullable<Awaited<ReturnType<typeof listPublicBranches>>>
+export type ListPublicBranchesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List the three branches available for teacher requests
+ */
+
+export function useListPublicBranches<TData = Awaited<ReturnType<typeof listPublicBranches>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPublicBranches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPublicBranchesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -718,7 +959,7 @@ export const getCreatePrintRequestUrl = () => {
 }
 
 /**
- * @summary Submit a print request for the teacher's assigned branch
+ * @summary Submit a teacher print request without requiring an account
  */
 export const createPrintRequest = async (printRequestInput: PrintRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<PrintRequest> => {
 
@@ -784,7 +1025,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreatePrintRequestMutationVariables = {data: BodyType<PrintRequestInput>}
 
     /**
- * @summary Submit a print request for the teacher's assigned branch
+ * @summary Submit a teacher print request without requiring an account
  */
 export const useCreatePrintRequest = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPrintRequest>>, TError,CreatePrintRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -972,7 +1213,7 @@ export const getRequestUploadUrlUrl = () => {
 }
 
 /**
- * @summary Request a private upload URL for an attachment
+ * @summary Request a private upload URL for an unauthenticated teacher submission
  */
 export const requestUploadUrl = async (uploadUrlInput: UploadUrlInput, options?: Parameters<typeof customFetch>[1]): Promise<UploadUrl> => {
 
@@ -1038,7 +1279,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RequestUploadUrlMutationVariables = {data: BodyType<UploadUrlInput>}
 
     /**
- * @summary Request a private upload URL for an attachment
+ * @summary Request a private upload URL for an unauthenticated teacher submission
  */
 export const useRequestUploadUrl = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,RequestUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

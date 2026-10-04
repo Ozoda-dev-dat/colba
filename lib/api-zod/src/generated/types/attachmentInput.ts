@@ -18,4 +18,6 @@ export interface AttachmentInput {
   size: number;
   /** @minLength 1 */
   contentType: string;
+  /** @minLength 20 */
+  ownerToken: string;
 }

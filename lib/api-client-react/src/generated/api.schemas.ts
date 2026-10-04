@@ -54,6 +54,19 @@ export interface UserProfile {
   isActive: boolean;
 }
 
+export interface PrinterLoginInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  username: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  password: string;
+}
+
 export interface SchoolUser {
   clerkId: string;
   fullName: string;
@@ -95,6 +108,8 @@ export interface AttachmentInput {
   size: number;
   /** @minLength 1 */
   contentType: string;
+  /** @minLength 20 */
+  ownerToken: string;
 }
 
 export interface AttachmentInfo {
@@ -125,6 +140,13 @@ export interface PrintRequestInput {
      * @maxLength 160
      */
   title: string;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  requesterName: string;
+  /** @minimum 1 */
+  branchId: number;
   /**
      * @minimum 1
      * @maximum 5000
@@ -162,7 +184,12 @@ export interface UploadUrlInput {
 export interface UploadUrl {
   uploadURL: string;
   objectPath: string;
+  ownerToken: string;
 }
+
+export type PrinterLogout200 = {
+  success: boolean;
+};
 
 export type ListPrintRequestsParams = {
 status?: RequestStatus;

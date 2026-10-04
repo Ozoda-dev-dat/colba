@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Router, type IRouter } from "express";
 import {
   and,
@@ -20,9 +21,12 @@ import {
   GetPrintRequestParams,
   GetPrintRequestResponse,
   ListBranchesResponse,
+  ListPublicBranchesResponse,
   ListPrintRequestsQueryParams,
   ListPrintRequestsResponse,
   ListUsersResponse,
+  PrinterLoginBody,
+  PrinterLoginResponse,
   UpdatePrintRequestStatusBody,
   UpdatePrintRequestStatusParams,
   UpdatePrintRequestStatusResponse,
@@ -41,12 +45,21 @@ import {
 import type { Response } from "express";
 import type { Request } from "express";
 import {
+  PRINTER_BRANCHES,
+  clearPrinterSession,
+  ensurePrinterBranches,
+  findPrinterAccount,
+  getPrinterProfile,
   getSchoolProfile,
   hasBranchAccess,
+  isPrinterCredentialConfigured,
   isAdmin,
+  setPrinterSession,
   type SchoolProfile,
+  verifyPrinterCredentials,
 } from "../lib/schoolAuth";
 import { objectStorageService } from "../lib/objectStorage";
+import { sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -99,6 +112,32 @@ function sqlFalse() {
   return eq(printRequestsTable.id, -1);
 }
 
+function hashUploadToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 8;
+
+function isLoginRateLimited(ip: string): boolean {
+  const now = Date.now();
+  for (const [key, attempt] of loginAttempts) {
+    if (attempt.resetAt <= now) loginAttempts.delete(key);
+  }
+  const current = loginAttempts.get(ip);
+  if (!current || current.resetAt <= now) {
+    loginAttempts.set(ip, { count: 0, resetAt: now + LOGIN_WINDOW_MS });
+    return false;
+  }
+  return current.count >= MAX_LOGIN_ATTEMPTS;
+}
+
+function recordLoginFailure(ip: string): void {
+  const current = loginAttempts.get(ip);
+  if (current) current.count += 1;
+}
+
 async function loadRequests(
   profile: SchoolProfile,
   status?: string,
@@ -125,11 +164,11 @@ async function loadRequests(
       createdAt: printRequestsTable.createdAt,
       branchId: printRequestsTable.branchId,
       branchName: branchesTable.name,
-      requesterName: schoolUsersTable.fullName,
+      requesterName: sql<string>`coalesce(${printRequestsTable.requesterName}, ${schoolUsersTable.fullName}, 'Ustoz')`,
     })
     .from(printRequestsTable)
     .innerJoin(branchesTable, eq(printRequestsTable.branchId, branchesTable.id))
-    .innerJoin(
+    .leftJoin(
       schoolUsersTable,
       eq(printRequestsTable.requestedByUserId, schoolUsersTable.clerkId),
     )
@@ -169,6 +208,53 @@ router.get("/me", async (req, res): Promise<void> => {
     return;
   }
   res.json(GetCurrentUserResponse.parse(profile));
+});
+
+router.post("/auth/login", async (req, res): Promise<void> => {
+  const parsed = PrinterLoginBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Login va parolni kiriting." });
+    return;
+  }
+  const ip = req.ip || "unknown";
+  if (isLoginRateLimited(ip)) {
+    res.status(429).json({ error: "Urinishlar ko‘payib ketdi. 15 daqiqadan so‘ng qayta urinib ko‘ring." });
+    return;
+  }
+  if (!findPrinterAccount(parsed.data.username)) {
+    recordLoginFailure(ip);
+    res.status(401).json({ error: "Login yoki parol noto‘g‘ri." });
+    return;
+  }
+  if (!isPrinterCredentialConfigured(parsed.data.username)) {
+    res.status(503).json({ error: "Bu filial hisobi hozircha sozlanmagan." });
+    return;
+  }
+  if (!verifyPrinterCredentials(parsed.data.username, parsed.data.password)) {
+    recordLoginFailure(ip);
+    res.status(401).json({ error: "Login yoki parol noto‘g‘ri." });
+    return;
+  }
+
+  await ensurePrinterBranches();
+  const profile = await getPrinterProfile(parsed.data.username);
+  if (!profile) {
+    res.status(503).json({ error: "Filial hisobi vaqtincha ishlamayapti." });
+    return;
+  }
+  loginAttempts.delete(ip);
+  setPrinterSession(res, parsed.data.username);
+  res.json(PrinterLoginResponse.parse(profile));
+});
+
+router.post("/auth/logout", (_req, res): void => {
+  clearPrinterSession(res);
+  res.json({ success: true });
+});
+
+router.get("/public/branches", async (_req, res): Promise<void> => {
+  const branches = await ensurePrinterBranches();
+  res.json(ListPublicBranchesResponse.parse(branches));
 });
 
 router.get("/dashboard", async (req, res): Promise<void> => {
@@ -399,18 +485,15 @@ router.get("/print-requests", async (req, res): Promise<void> => {
 });
 
 router.post("/print-requests", async (req, res): Promise<void> => {
-  const profile = await activeProfile(req, res);
-  if (!profile) return;
-  if (profile.role !== "teacher" || profile.branchId === null) {
-    res.status(403).json({
-      error: "Buyurtma yuborish uchun ustoz roli va filial biriktirilgan bo‘lishi kerak.",
-    });
-    return;
-  }
-
   const parsed = CreatePrintRequestBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const branches = await ensurePrinterBranches();
+  const branch = branches.find((candidate) => candidate.id === parsed.data.branchId);
+  if (!branch) {
+    res.status(400).json({ error: "Uchta mavjud filialdan birini tanlang." });
     return;
   }
   if (parsed.data.dueAt.getTime() <= Date.now()) {
@@ -419,7 +502,13 @@ router.post("/print-requests", async (req, res): Promise<void> => {
   }
 
   const attachmentPaths = parsed.data.attachments.map((file) => file.objectPath);
-  if (new Set(attachmentPaths).size !== attachmentPaths.length) {
+  const uploadTokens = parsed.data.attachments.map((file) =>
+    hashUploadToken(file.ownerToken),
+  );
+  if (
+    new Set(attachmentPaths).size !== attachmentPaths.length ||
+    new Set(uploadTokens).size !== uploadTokens.length
+  ) {
     res.status(400).json({ error: "Bir xil faylni takroran qo‘shib bo‘lmaydi." });
     return;
   }
@@ -428,9 +517,9 @@ router.post("/print-requests", async (req, res): Promise<void> => {
     .from(uploadedFilesTable)
     .where(
       and(
-        eq(uploadedFilesTable.ownerClerkId, profile.clerkId),
         isNull(uploadedFilesTable.requestId),
         inArray(uploadedFilesTable.objectPath, attachmentPaths),
+        inArray(uploadedFilesTable.uploadToken, uploadTokens),
       ),
     );
   if (uploadedFiles.length !== parsed.data.attachments.length) {
@@ -444,6 +533,7 @@ router.post("/print-requests", async (req, res): Promise<void> => {
     const stored = filesByPath.get(attachment.objectPath);
     if (
       !stored ||
+      stored.uploadToken !== hashUploadToken(attachment.ownerToken) ||
       stored.name !== attachment.name ||
       stored.size !== attachment.size ||
       stored.contentType !== attachment.contentType
@@ -452,7 +542,22 @@ router.post("/print-requests", async (req, res): Promise<void> => {
       return;
     }
     try {
-      await objectStorageService.getObjectEntityFile(stored.objectPath);
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        stored.objectPath,
+      );
+      const [metadata] = await objectFile.getMetadata();
+      const actualSize = Number(metadata.size);
+      if (
+        !Number.isFinite(actualSize) ||
+        actualSize !== stored.size ||
+        actualSize > 15 * 1024 * 1024 ||
+        metadata.contentType !== stored.contentType
+      ) {
+        res.status(400).json({
+          error: `“${stored.name}” faylining hajmi yoki turi mos kelmadi.`,
+        });
+        return;
+      }
     } catch {
       res.status(400).json({
         error: `“${stored.name}” fayli yuklanmagan. Qayta yuklab ko‘ring.`,
@@ -461,23 +566,17 @@ router.post("/print-requests", async (req, res): Promise<void> => {
     }
   }
 
-  for (const file of uploadedFiles) {
-    await objectStorageService.trySetObjectEntityAclPolicy(file.objectPath, {
-      owner: profile.clerkId,
-      visibility: "private",
-    });
-  }
-
   const created = await db.transaction(async (tx) => {
     const [request] = await tx
       .insert(printRequestsTable)
       .values({
         title: parsed.data.title.trim(),
+        requesterName: parsed.data.requesterName.trim(),
         copies: parsed.data.copies,
         dueAt: parsed.data.dueAt,
         note: parsed.data.note?.trim() || null,
-        branchId: profile.branchId!,
-        requestedByUserId: profile.clerkId,
+        branchId: branch.id,
+        requestedByUserId: null,
       })
       .returning();
     await tx
@@ -485,14 +584,24 @@ router.post("/print-requests", async (req, res): Promise<void> => {
       .set({ requestId: request.id })
       .where(
         and(
-          eq(uploadedFilesTable.ownerClerkId, profile.clerkId),
           isNull(uploadedFilesTable.requestId),
           inArray(uploadedFilesTable.objectPath, attachmentPaths),
+          inArray(uploadedFilesTable.uploadToken, uploadTokens),
         ),
       );
     return request;
   });
 
+  const branchAccount = PRINTER_BRANCHES.find(
+    (account) => account.branchName === branch.name,
+  );
+  const profile = branchAccount
+    ? await getPrinterProfile(branchAccount.username)
+    : null;
+  if (!profile) {
+    res.status(500).json({ error: "So‘rov saqlandi, lekin uni qaytarib bo‘lmadi." });
+    return;
+  }
   const [request] = await loadRequests(profile, undefined, created.id);
   res.status(201).json(CreatePrintRequestResponse.parse(request));
 });
