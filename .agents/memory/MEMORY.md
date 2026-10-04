@@ -1,1 +1,2 @@
 - [Maktab Print access model](maktab-print-access.md) — teachers submit anonymously; only branch-scoped printer accounts can access queues and files.
+- [Maktab Print typography](maktab-print-typography.md) — keep the user-selected Lora headings + DM Sans body pairing consistent across the app.
