@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ButtonHTMLAttributes, type ChangeEve
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowDownToLine, ArrowLeft, ArrowRight, Check, ChevronRight, CircleAlert,
-  Clock3, FileText, Files, LayoutDashboard, LogOut, Search, ShieldCheck,
+  Clock3, FileText, Files, LayoutDashboard, LogOut, Printer, Search, ShieldCheck,
   Upload, X,
 } from 'lucide-react';
 import { Link, Redirect, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
@@ -92,8 +92,16 @@ function Toast({ notice }: { notice: { text: string; error?: boolean } | null })
 function Home() {
   return <main className="public-page home-page">
     <nav className="home-actions" aria-label="Asosiy amallar">
-      <Link href="/request" className="button">Bosma so'rovini yuborish</Link>
-      <Link href="/sign-in" className="button secondary">Printer xodimi</Link>
+      <Link href="/request" className="button">
+        <span className="home-action-icon"><FileText aria-hidden="true" /></span>
+        <span className="home-action-label">Bosma so'rovini yuborish</span>
+        <ArrowRight className="home-action-arrow" aria-hidden="true" />
+      </Link>
+      <Link href="/sign-in" className="button secondary">
+        <span className="home-action-icon"><Printer aria-hidden="true" /></span>
+        <span className="home-action-label">Printer xodimi</span>
+        <ArrowRight className="home-action-arrow" aria-hidden="true" />
+      </Link>
     </nav>
   </main>;
 }
