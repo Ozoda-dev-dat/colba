@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -25,6 +26,15 @@ app.use(
     },
   }),
 );
+const webOrigin = process.env.WEB_ORIGIN?.trim();
+if (webOrigin) {
+  app.use(
+    cors({
+      origin: webOrigin,
+      credentials: true,
+    }),
+  );
+}
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 

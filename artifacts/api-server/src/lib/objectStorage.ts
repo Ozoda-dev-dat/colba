@@ -12,23 +12,69 @@ import {
 
 const REPLIT_SIDECAR_ENDPOINT = 'http://127.0.0.1:1106';
 
-export const objectStorageClient = new Storage({
-  credentials: {
-    audience: 'replit',
-    subject_token_type: 'access_token',
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: 'external_account',
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: 'json',
-        subject_token_field_name: 'access_token',
+let objectStorageClient: Storage | undefined;
+
+function getObjectStorageClient(): Storage {
+  if (objectStorageClient) return objectStorageClient;
+
+  const serviceAccountJson = process.env.GCS_SERVICE_ACCOUNT_JSON;
+  if (serviceAccountJson) {
+    let parsed: {
+      client_email?: unknown;
+      private_key?: unknown;
+      project_id?: unknown;
+    };
+    try {
+      parsed = JSON.parse(serviceAccountJson);
+    } catch {
+      throw new Error('GCS_SERVICE_ACCOUNT_JSON must contain valid JSON.');
+    }
+
+    const clientEmail = parsed.client_email;
+    const privateKey = parsed.private_key;
+    const projectId = process.env.GCS_PROJECT_ID?.trim() || parsed.project_id;
+    if (
+      typeof clientEmail !== 'string' ||
+      typeof privateKey !== 'string' ||
+      typeof projectId !== 'string'
+    ) {
+      throw new Error(
+        'GCS service account JSON must include client_email, private_key, and project_id.',
+      );
+    }
+
+    objectStorageClient = new Storage({
+      projectId,
+      credentials: { client_email: clientEmail, private_key: privateKey },
+    });
+    return objectStorageClient;
+  }
+
+  if (!process.env.REPL_ID) {
+    throw new Error(
+      'GCS_SERVICE_ACCOUNT_JSON is required for object storage outside Replit.',
+    );
+  }
+
+  objectStorageClient = new Storage({
+    credentials: {
+      audience: 'replit',
+      subject_token_type: 'access_token',
+      token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+      type: 'external_account',
+      credential_source: {
+        url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+        format: {
+          type: 'json',
+          subject_token_field_name: 'access_token',
+        },
       },
+      universe_domain: 'googleapis.com',
     },
-    universe_domain: 'googleapis.com',
-  },
-  projectId: '',
-});
+    projectId: '',
+  });
+  return objectStorageClient;
+}
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -76,7 +122,7 @@ export class ObjectStorageService {
       const fullPath = `${searchPath}/${filePath}`;
 
       const { bucketName, objectName } = parseObjectPath(fullPath);
-      const bucket = objectStorageClient.bucket(bucketName);
+      const bucket = getObjectStorageClient().bucket(bucketName);
       const file = bucket.file(objectName);
 
       const [exists] = await file.exists();
@@ -161,7 +207,7 @@ export class ObjectStorageService {
     }
     const objectEntityPath = `${entityDir}${entityId}`;
     const { bucketName, objectName } = parseObjectPath(objectEntityPath);
-    const bucket = objectStorageClient.bucket(bucketName);
+    const bucket = getObjectStorageClient().bucket(bucketName);
     const objectFile = bucket.file(objectName);
     const [exists] = await objectFile.exists();
     if (!exists) {
@@ -256,6 +302,25 @@ async function signObjectURL({
   method: 'GET' | 'PUT' | 'DELETE' | 'HEAD';
   ttlSec: number;
 }): Promise<string> {
+  const gcsServiceAccountJson = process.env.GCS_SERVICE_ACCOUNT_JSON;
+  if (gcsServiceAccountJson || !process.env.REPL_ID) {
+    const action =
+      method === 'PUT'
+        ? 'write'
+        : method === 'DELETE'
+          ? 'delete'
+          : 'read';
+    const [signedURL] = await getObjectStorageClient()
+      .bucket(bucketName)
+      .file(objectName)
+      .getSignedUrl({
+        version: 'v4',
+        action,
+        expires: new Date(Date.now() + ttlSec * 1000),
+      });
+    return signedURL;
+  }
+
   const request = {
     bucket_name: bucketName,
     object_name: objectName,

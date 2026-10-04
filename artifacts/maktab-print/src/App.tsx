@@ -11,11 +11,14 @@ import {
   getListPrintRequestsQueryKey, useCreatePrintRequest, useGetCurrentUser,
   useGetDashboard, useGetPrintRequest, useListPrintRequests,
   useListPublicBranches, usePrinterLogin, usePrinterLogout,
-  useRequestUploadUrl, useUpdatePrintRequestStatus,
+  setBaseUrl, useRequestUploadUrl, useUpdatePrintRequestStatus,
 } from '@workspace/api-client-react';
 import type { AttachmentInput, Branch, PrintRequest, RequestStatus, UserProfile } from '@workspace/api-client-react';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+setBaseUrl(apiBaseUrl || null);
+const apiUrl = (path: string) => `${apiBaseUrl}${path}`;
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false, staleTime: 20_000 } } });
 const statusNames: Record<RequestStatus, string> = {
   queued: 'Navbatda', in_progress: 'Jarayonda', ready: 'Tayyor', completed: 'Yakunlangan', cancelled: 'Bekor qilingan',
@@ -320,7 +323,7 @@ function RequestDetail() {
     });
   }
   return <div className="content"><div className="page-heading"><div><div className="eyebrow">So‘rov №{request.id} · {request.branchName}</div><h1 className="page-title">{request.title}</h1></div><Link href="/app/requests" className="button ghost"><ArrowLeft /> Navbatga qaytish</Link></div>
-    <div className="detail-grid"><section className="panel detail-main"><Status status={request.status} /><div className="detail-facts"><div className="detail-fact"><span>Kerakli vaqt</span><strong>{formatDate(request.dueAt, true)}</strong></div><div className="detail-fact"><span>Nusxalar</span><strong>{request.copies} dona</strong></div><div className="detail-fact"><span>O‘qituvchi</span><strong>{request.requesterName}</strong></div></div>{request.note && <div className="detail-note">{request.note}</div>}<div className="panel-head" style={{ padding: '16px 0 10px', borderTop: '1px solid #edf0e8' }}><div><div className="panel-title">Biriktirilgan materiallar</div><div className="panel-kicker">{request.attachments.length} ta fayl</div></div></div>{request.attachments.length ? request.attachments.map((file) => <div className="attachment" key={file.fileIndex}><div className="file-icon"><FileText /></div><div className="attachment-main"><strong>{file.name}</strong><span>{file.contentType} · {(file.size / 1024 / 1024).toFixed(2)} MB</span></div><a className="row-action" href={`/api/storage/requests/${request.id}/files/${file.fileIndex}`} download aria-label={`${file.name} faylini yuklab olish`} data-testid={`link-download-${file.fileIndex}`}><ArrowDownToLine /></a></div>) : null}</section>
+    <div className="detail-grid"><section className="panel detail-main"><Status status={request.status} /><div className="detail-facts"><div className="detail-fact"><span>Kerakli vaqt</span><strong>{formatDate(request.dueAt, true)}</strong></div><div className="detail-fact"><span>Nusxalar</span><strong>{request.copies} dona</strong></div><div className="detail-fact"><span>O‘qituvchi</span><strong>{request.requesterName}</strong></div></div>{request.note && <div className="detail-note">{request.note}</div>}<div className="panel-head" style={{ padding: '16px 0 10px', borderTop: '1px solid #edf0e8' }}><div><div className="panel-title">Biriktirilgan materiallar</div><div className="panel-kicker">{request.attachments.length} ta fayl</div></div></div>{request.attachments.length ? request.attachments.map((file) => <div className="attachment" key={file.fileIndex}><div className="file-icon"><FileText /></div><div className="attachment-main"><strong>{file.name}</strong><span>{file.contentType} · {(file.size / 1024 / 1024).toFixed(2)} MB</span></div><a className="row-action" href={apiUrl(`/api/storage/requests/${request.id}/files/${file.fileIndex}`)} download aria-label={`${file.name} faylini yuklab olish`} data-testid={`link-download-${file.fileIndex}`}><ArrowDownToLine /></a></div>) : null}</section>
       <aside className="panel detail-side"><h3>So‘rov jarayoni</h3><div className="timeline-item"><b>Yuborildi</b><br />{formatDate(request.createdAt, true)}</div>{transitions[request.status].length > 0 && <><div className="side-rule" /><label className="field"><span className="form-section-title" style={{ fontSize: 12 }}>Keyingi holat</span><select className="field-control" value={request.status} onChange={(e) => changeStatus(e.target.value as RequestStatus)} disabled={mutation.isPending} data-testid="select-status-detail">{[request.status, ...transitions[request.status]].map((status) => <option key={status} value={status}>{statusNames[status]}</option>)}</select></label></>}</aside></div><Toast notice={notice} />
   </div>;
 }
