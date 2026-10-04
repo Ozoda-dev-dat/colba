@@ -1,0 +1,359 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap');
+
+.maktab-fonts,
+.maktab-fonts * {
+  box-sizing: border-box;
+}
+
+.maktab-fonts {
+  min-width: 320px;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: #f1f6eb;
+  color: #294538;
+  font-family: 'Source Sans 3', sans-serif;
+}
+
+.maktab-fonts a {
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.maktab-fonts a:focus-visible {
+  outline: 3px solid #93ae77;
+  outline-offset: 2px;
+}
+
+.maktab-fonts .public-nav {
+  height: 78px;
+  max-width: 1320px;
+  padding: 0 max(6vw, 28px);
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.maktab-fonts .public-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #5e735f;
+  font-size: 12px;
+}
+
+.maktab-fonts .button {
+  border: 0;
+  border-radius: 9px;
+  padding: 12px 17px;
+  background: #528865;
+  color: #fbfff8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px #406e4a1b;
+  transition: transform .18s, background .18s, box-shadow .18s;
+}
+
+.maktab-fonts .button:hover {
+  background: #426f53;
+  transform: translateY(-1px);
+  box-shadow: 0 7px 17px #21462f25;
+}
+
+.maktab-fonts .button.ghost {
+  background: transparent;
+  color: #42664d;
+  border: 1px solid #d2e1ce;
+  box-shadow: none;
+}
+
+.maktab-fonts .button svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.maktab-fonts .public-hero {
+  min-height: 580px;
+  padding: 48px max(8vw, 30px) 60px;
+  display: grid;
+  grid-template-columns: 1.08fr .92fr;
+  gap: 4vw;
+  align-items: center;
+  max-width: 1320px;
+  margin: auto;
+}
+
+.maktab-fonts .hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d7e7d1;
+  background: #e6f1df;
+  border-radius: 99px;
+  padding: 9px 13px;
+  color: #4e7959;
+  font: 600 10px 'Source Sans 3', sans-serif;
+  letter-spacing: .2px;
+}
+
+.maktab-fonts .hero-tag i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #83ae82;
+}
+
+.maktab-fonts .hero-title {
+  max-width: 660px;
+  margin: 24px 0 18px;
+  color: #294b38;
+  font: 800 clamp(52px, 6.5vw, 88px)/1.03 'Fraunces', Georgia, serif;
+  letter-spacing: -2.4px;
+}
+
+.maktab-fonts .hero-title em {
+  color: #76a17a;
+  font-style: normal;
+}
+
+.maktab-fonts .hero-copy {
+  max-width: 390px;
+  margin: 0 0 30px;
+  color: #687f6c;
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+.maktab-fonts .hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.maktab-fonts .hero-actions .button {
+  min-height: 48px;
+  padding: 13px 19px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.maktab-fonts .hero-visual {
+  height: 440px;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.maktab-fonts .visual-orbit {
+  position: absolute;
+  width: 390px;
+  height: 390px;
+  border: 1px solid #d3e4ce;
+  border-radius: 50%;
+  transform: rotate(-20deg);
+}
+
+.maktab-fonts .visual-orbit::before,
+.maktab-fonts .visual-orbit::after {
+  content: '';
+  position: absolute;
+  inset: 26px;
+  border: 1px solid #d9e8d4;
+  border-radius: 50%;
+}
+
+.maktab-fonts .visual-orbit::after {
+  inset: 54px;
+}
+
+.maktab-fonts .print-sheet {
+  position: relative;
+  z-index: 1;
+  width: 260px;
+  min-height: 325px;
+  padding: 27px;
+  border: 1px solid #e4e6db;
+  border-radius: 8px;
+  background: #fffef9;
+  box-shadow: 0 28px 65px #3d66401a;
+  transform: rotate(5deg);
+  animation: maktab-fonts-float-in .7s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.maktab-fonts .sheet-top {
+  display: flex;
+  justify-content: space-between;
+  color: #849387;
+  font: 9px 'Source Sans 3', sans-serif;
+  letter-spacing: 1px;
+}
+
+.maktab-fonts .sheet-title {
+  margin: 26px 0 15px;
+  color: #26432f;
+  font: 800 23px/1.15 'Fraunces', Georgia, serif;
+}
+
+.maktab-fonts .sheet-line {
+  height: 5px;
+  margin: 8px 0;
+  border-radius: 8px;
+  background: #e7ecdf;
+}
+
+.maktab-fonts .sheet-line.short {
+  width: 65%;
+}
+
+.maktab-fonts .worksheet {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 20px;
+}
+
+.maktab-fonts .worksheet i {
+  height: 39px;
+  border: 1px solid #e3e8dc;
+  border-radius: 5px;
+  background: #f7f8f2;
+}
+
+.maktab-fonts .sheet-stamp {
+  position: absolute;
+  right: -25px;
+  bottom: 36px;
+  width: 93px;
+  height: 93px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #c1dfb8;
+  border-radius: 50%;
+  background: #dcefd5;
+  color: #4d7954;
+  font: 700 9px 'Source Sans 3', sans-serif;
+  text-align: center;
+  letter-spacing: .7px;
+  transform: rotate(-13deg);
+}
+
+.maktab-fonts .hero-caption {
+  position: absolute;
+  bottom: 14px;
+  left: 2%;
+  color: #79907a;
+  font: 10px 'Source Sans 3', sans-serif;
+  font-size: 9px;
+  letter-spacing: .6px;
+}
+
+.maktab-fonts .public-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 22px max(8vw, 30px);
+  border-top: 1px solid #dce8d6;
+  color: #748a75;
+  font-size: 12px;
+}
+
+.maktab-fonts .home-audience {
+  color: #66836a;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+
+.maktab-fonts .home-steps {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 37px;
+  color: #6a846b;
+  font-size: 12px;
+}
+
+.maktab-fonts .home-steps span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.maktab-fonts .home-steps b {
+  color: #4e805a;
+  font: 500 10px 'Source Sans 3', sans-serif;
+}
+
+.maktab-fonts .home-steps i {
+  width: 24px;
+  height: 1px;
+  background: #cbdcc6;
+}
+
+@keyframes maktab-fonts-float-in {
+  from { opacity: 0; transform: translateY(14px) rotate(2deg); }
+  to { opacity: 1; transform: translateY(0) rotate(5deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .maktab-fonts *,
+  .maktab-fonts *::before,
+  .maktab-fonts *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 1050px) {
+  .maktab-fonts .public-hero { padding-top: 42px; }
+  .maktab-fonts .hero-title { letter-spacing: -2.7px; }
+}
+
+@media (max-width: 760px) {
+  .maktab-fonts .public-nav {
+    height: 67px;
+    padding: 0 19px;
+    justify-content: space-between;
+  }
+  .maktab-fonts .public-links { gap: 12px; }
+  .maktab-fonts .public-links a:not(.button) { display: none; }
+  .maktab-fonts .home-audience { font-size: 12px; }
+  .maktab-fonts .public-hero {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding: 44px 24px 22px;
+  }
+  .maktab-fonts .hero-title { font-size: 51px; letter-spacing: -2.9px; }
+  .maktab-fonts .hero-copy { font-size: 13px; }
+  .maktab-fonts .hero-visual {
+    height: 330px;
+    margin: -3px 0 -10px;
+    transform: scale(.86);
+  }
+  .maktab-fonts .visual-orbit { width: 310px; height: 310px; }
+  .maktab-fonts .print-sheet { transform: rotate(4deg) scale(.9); }
+  .maktab-fonts .home-steps { margin-top: 26px; }
+  .maktab-fonts .public-footer { padding: 17px 25px; gap: 4px; }
+}
+
+@media (max-width: 430px) {
+  .maktab-fonts .hero-title { font-size: 43px; }
+  .maktab-fonts .hero-visual { margin-left: -18px; margin-right: -18px; }
+  .maktab-fonts .hero-caption {
+    left: 0;
+    right: 0;
+    bottom: 6px;
+    z-index: 2;
+    text-align: center;
+    font-size: 8px;
+    letter-spacing: .45px;
+    white-space: nowrap;
+  }
+}

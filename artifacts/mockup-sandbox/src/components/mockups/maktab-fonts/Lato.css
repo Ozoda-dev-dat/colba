@@ -1,0 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;500;600;700;800&display=swap');
+
+.maktab-lato .maktab-fonts,
+.maktab-lato .maktab-fonts * {
+  font-family: 'Lato', sans-serif;
+}
