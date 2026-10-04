@@ -1,0 +1,11 @@
+.maktab-request-inter .maktab-request {
+  font-family: 'Inter', sans-serif;
+}
+
+.maktab-request-inter .maktab-request .brand-mark,
+.maktab-request-inter .maktab-request .brand-name,
+.maktab-request-inter .maktab-request .request-intro h1,
+.maktab-request-inter .maktab-request .form-section-title,
+.maktab-request-inter .maktab-request .form-side h3 {
+  font-family: 'Inter', sans-serif;
+}

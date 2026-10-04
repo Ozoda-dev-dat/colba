@@ -1,0 +1,11 @@
+.maktab-request-lora .maktab-request {
+  font-family: 'DM Sans', sans-serif;
+}
+
+.maktab-request-lora .brand-mark,
+.maktab-request-lora .brand-name,
+.maktab-request-lora .request-intro h1,
+.maktab-request-lora .form-section-title,
+.maktab-request-lora .form-side h3 {
+  font-family: 'Lora', Georgia, serif;
+}

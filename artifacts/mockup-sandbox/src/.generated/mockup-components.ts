@@ -3,5 +3,9 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/maktab-fonts/Current.tsx": () => import("../components/mockups/maktab-fonts/Current.tsx"),
   "./components/mockups/maktab-fonts/Lato.tsx": () => import("../components/mockups/maktab-fonts/Lato.tsx"),
-  "./components/mockups/maktab-fonts/NunitoSans.tsx": () => import("../components/mockups/maktab-fonts/NunitoSans.tsx")
+  "./components/mockups/maktab-fonts/NunitoSans.tsx": () => import("../components/mockups/maktab-fonts/NunitoSans.tsx"),
+  "./components/mockups/maktab-request-fonts/Current.tsx": () => import("../components/mockups/maktab-request-fonts/Current.tsx"),
+  "./components/mockups/maktab-request-fonts/Inter.tsx": () => import("../components/mockups/maktab-request-fonts/Inter.tsx"),
+  "./components/mockups/maktab-request-fonts/Jakarta.tsx": () => import("../components/mockups/maktab-request-fonts/Jakarta.tsx"),
+  "./components/mockups/maktab-request-fonts/Lora.tsx": () => import("../components/mockups/maktab-request-fonts/Lora.tsx")
 };

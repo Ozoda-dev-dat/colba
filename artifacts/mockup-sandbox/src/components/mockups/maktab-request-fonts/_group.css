@@ -1,0 +1,352 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap');
+
+.maktab-request,
+.maktab-request * {
+  box-sizing: border-box;
+}
+
+.maktab-request {
+  min-width: 320px;
+  min-height: 100vh;
+  padding: 0 24px 56px;
+  background: #f1f6eb;
+  color: #294538;
+  font-family: 'Source Sans 3', sans-serif;
+}
+
+.maktab-request button,
+.maktab-request input,
+.maktab-request select,
+.maktab-request textarea {
+  font: inherit;
+}
+
+.maktab-request a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.maktab-request button:focus-visible,
+.maktab-request a:focus-visible,
+.maktab-request input:focus-visible,
+.maktab-request select:focus-visible,
+.maktab-request textarea:focus-visible {
+  outline: 3px solid #93ae77;
+  outline-offset: 2px;
+}
+
+.maktab-request .brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.maktab-request .brand-mark {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  place-items: center;
+  border-radius: 12px;
+  background: #d8e7b5;
+  color: #224431;
+  font: 800 18px 'Fraunces', Georgia, serif;
+  letter-spacing: -2px;
+}
+
+.maktab-request .brand-name {
+  color: #294538;
+  font: 800 19px 'Fraunces', Georgia, serif;
+  letter-spacing: -.7px;
+  line-height: 1.05;
+}
+
+.maktab-request .brand-sub {
+  margin-top: 5px;
+  color: #78907b;
+  font-size: 9px;
+  letter-spacing: 1.45px;
+  text-transform: uppercase;
+}
+
+.maktab-request .request-top {
+  display: flex;
+  max-width: 1120px;
+  height: 78px;
+  align-items: center;
+  justify-content: space-between;
+  margin: auto;
+}
+
+.maktab-request .button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 12px 17px;
+  border: 0;
+  border-radius: 9px;
+  background: #528865;
+  box-shadow: 0 4px 12px #406e4a1b;
+  color: #fbfff8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition: transform .18s, background .18s, box-shadow .18s;
+}
+
+.maktab-request .button:hover {
+  transform: translateY(-1px);
+  background: #426f53;
+  box-shadow: 0 7px 17px #21462f25;
+}
+
+.maktab-request .button.ghost {
+  border: 1px solid #d2e1ce;
+  background: transparent;
+  box-shadow: none;
+  color: #42664d;
+}
+
+.maktab-request .button svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.maktab-request .request-shell {
+  max-width: 1120px;
+  margin: 25px auto 0;
+}
+
+.maktab-request .request-intro {
+  margin: 0 0 25px;
+}
+
+.maktab-request .eyebrow {
+  margin-bottom: 9px;
+  color: #64836b;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.7px;
+  text-transform: uppercase;
+}
+
+.maktab-request .request-intro h1 {
+  margin: 0;
+  color: #203e2b;
+  font: 800 clamp(30px, 4vw, 43px)/1.12 'Fraunces', Georgia, serif;
+  letter-spacing: -1.7px;
+}
+
+.maktab-request .request-intro p {
+  margin: 9px 0 0;
+  color: #728073;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.maktab-request .request-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(240px, .72fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.maktab-request .panel {
+  border: 1px solid #dce8d6;
+  border-radius: 13px;
+  background: #fbfdf7;
+  box-shadow: 0 2px 10px #243e2a08;
+}
+
+.maktab-request .form-panel {
+  padding: 25px;
+}
+
+.maktab-request .form-section-title {
+  margin: 0 0 5px;
+  color: #294631;
+  font: 700 15px 'Fraunces', Georgia, serif;
+}
+
+.maktab-request .form-section-copy {
+  margin: 0 0 22px;
+  color: #899487;
+  font-size: 11px;
+}
+
+.maktab-request .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.maktab-request .request-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.maktab-request .field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.maktab-request .field.full {
+  grid-column: 1 / -1;
+}
+
+.maktab-request .field label {
+  color: #455d49;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.maktab-request .field input,
+.maktab-request .field textarea,
+.maktab-request .field select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #dce3d7;
+  border-radius: 8px;
+  outline: none;
+  background: #fffefb;
+  color: #294532;
+  font-size: 12px;
+}
+
+.maktab-request .field input:focus,
+.maktab-request .field textarea:focus,
+.maktab-request .field select:focus {
+  border-color: #7d9d77;
+  box-shadow: 0 0 0 3px #8ba97b21;
+}
+
+.maktab-request .field textarea {
+  min-height: 85px;
+  resize: vertical;
+}
+
+.maktab-request .field-hint {
+  color: #96a095;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.maktab-request .drop-zone {
+  display: block;
+  padding: 22px 15px;
+  border: 1px dashed #9caf93;
+  border-radius: 10px;
+  background: #f7f8f0;
+  color: #6d816e;
+  cursor: pointer;
+  text-align: center;
+  transition: background .18s, border-color .18s;
+}
+
+.maktab-request .drop-zone:hover {
+  border-color: #6d8d65;
+  background: #eff3e8;
+}
+
+.maktab-request .drop-zone svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto 8px;
+  color: #577854;
+}
+
+.maktab-request .drop-zone strong {
+  display: block;
+  color: #3d5a42;
+  font-size: 12px;
+}
+
+.maktab-request .form-submit {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.maktab-request .form-side {
+  padding: 20px;
+  border: 1px solid #dce5d1;
+  border-radius: 12px;
+  background: #e8eddd;
+}
+
+.maktab-request .form-side h3 {
+  margin: 0 0 9px;
+  color: #36563b;
+  font: 700 13px 'Fraunces', Georgia, serif;
+}
+
+.maktab-request .form-side > p {
+  margin: 0;
+  color: #667967;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.maktab-request .side-rule {
+  height: 1px;
+  margin: 17px 0;
+  background: #cfdac7;
+}
+
+.maktab-request .form-note {
+  display: flex;
+  gap: 10px;
+  margin: 13px 0;
+  color: #687867;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.maktab-request .form-note svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: #567653;
+}
+
+@media (max-width: 760px) {
+  .maktab-request {
+    padding: 0 16px 40px;
+  }
+
+  .maktab-request .request-top {
+    height: 68px;
+  }
+
+  .maktab-request .request-shell {
+    margin-top: 21px;
+  }
+
+  .maktab-request .request-layout {
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+
+  .maktab-request .form-side {
+    order: 2;
+  }
+
+  .maktab-request .form-panel {
+    padding: 18px;
+  }
+
+  .maktab-request .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .maktab-request .field.full {
+    grid-column: auto;
+  }
+}
