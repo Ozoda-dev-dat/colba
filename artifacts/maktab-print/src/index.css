@@ -165,8 +165,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .sidebar .icon-button { background:transparent;color:#c3d0c1;border-color:#42604b;width:31px;height:31px; }
 .main { min-width:0;flex:1; }
 .topbar { height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 44px;border-bottom:1px solid #e5e5d9;background:#f8f7f0e8;backdrop-filter:blur(12px);position:sticky;top:0;z-index:4; }
-.crumb { font-size:12px;color:#748174;display:flex;gap:9px;align-items:center; }
-.crumb b { color:#254431;font-weight:600; }
 .topbar-right { display:flex;align-items:center;gap:14px; }
 .date-label { font:500 11px sans-serif;color:#738076; }
 .content { max-width:1450px;padding:34px 44px 70px;margin:0 auto; }
@@ -217,7 +215,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .select-small { height:32px;border-radius:7px;padding:0 8px;color:#506751;font-size:10px;max-width:130px; }
 .detail-grid { display:grid;grid-template-columns:minmax(0,1fr) 315px;gap:18px;align-items:start; }
 .detail-main { padding:23px; }
-.detail-title { font:800 25px sans-serif;letter-spacing:-.7px;color:#223f2d;margin:10px 0 18px; }
 .detail-facts { display:grid;grid-template-columns:repeat(3,1fr);gap:11px;padding:18px 0;border-top:1px solid #edf0e8;border-bottom:1px solid #edf0e8; }
 .detail-fact span { display:block;font-size:9px;text-transform:uppercase;letter-spacing:.9px;color:#99a197;margin-bottom:6px; }
 .detail-fact strong { font-size:12px;color:#38533e; }
@@ -246,7 +243,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Maktab Print — airy herb-and-paper palette with warm editorial typography. */
 body,button,input,select,textarea { font-family:sans-serif; }
-h1,h2,h3,.brand-name,.page-title,.detail-title,.form-section-title,.panel-title,.stat-value,.step-card h3,.cta-panel h2,.auth-card h1,.success-page h2,.hero-title,.section-intro h2,.sheet-title,.band-number { font-family:sans-serif !important; }
+h1,h2,h3,.brand-name,.page-title,.form-section-title,.panel-title,.stat-value,.step-card h3,.cta-panel h2,.auth-card h1,.success-page h2,.hero-title,.section-intro h2,.sheet-title,.band-number { font-family:sans-serif !important; }
 .hero-tag,.sheet-top,.sheet-stamp,.hero-caption,.eyebrow,.step-no,.side-label,.date-label,.status,.request-count,.reference-box,.auth-ornament,.home-steps b { font-family:sans-serif !important; }
 .avatar { font-family:sans-serif !important; }
 :root,
