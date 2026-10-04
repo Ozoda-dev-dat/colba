@@ -305,6 +305,9 @@ h1,h2,h3,.brand-name,.page-title,.detail-title,.form-section-title,.panel-title,
 .band-item { gap:11px; }
 .band-number { font-size:24px; }
 .band-label { font-size:12px; }
+.home-page { min-height:100dvh;display:grid;place-items:center;padding:24px; }
+.home-actions { display:flex;justify-content:center;gap:14px;flex-wrap:wrap; }
+.home-actions .button { min-height:52px;padding:14px 22px;font-size:14px;border-radius:10px; }
 
 @keyframes shimmer { to { background-position:-200% 0; } }
 @keyframes rise { from { opacity:0;transform:translateY(10px); } to { opacity:1;transform:translateY(0); } }
@@ -326,5 +329,6 @@ h1,h2,h3,.brand-name,.page-title,.detail-title,.form-section-title,.panel-title,
   .home-steps { margin-top:26px; }
   .hero-visual { transform:scale(.86);margin:-3px 0 -10px; }
   .public-footer { padding:17px 25px;gap:4px; }
+  .home-actions { width:min(100%,360px);display:grid; }
 }
 @media(max-width:430px) { .stats-grid{grid-template-columns:1fr 1fr}.toolbar{align-items:stretch}.searchbox{min-width:100%}.filter-select{flex:1}.hero-title{font-size:43px}.hero-visual{margin-left:-18px;margin-right:-18px}.detail-facts{grid-template-columns:1fr 1fr}.hero-caption{left:0;right:0;bottom:6px;z-index:2;text-align:center;font-size:8px;letter-spacing:.45px;white-space:nowrap}.request-top>.button{padding:9px 11px;font-size:10px} }
