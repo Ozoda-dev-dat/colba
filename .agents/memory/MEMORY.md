@@ -1,2 +1,3 @@
 - [Maktab Print access model](maktab-print-access.md) — teachers submit anonymously; only branch-scoped printer accounts can access queues and files.
 - [Maktab Print typography](maktab-print-typography.md) — use generic sans-serif for all site text, as requested by the user.
+- [Maktab Print copy style](maktab-print-copy.md) — keep visible copy concise and natural; remove redundant explanations and AI-sounding filler.

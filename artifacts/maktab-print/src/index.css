@@ -94,7 +94,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .request-intro { margin:0 0 25px; }
 .request-intro h1 { font:800 clamp(30px,4vw,43px) sans-serif;letter-spacing:-1.7px;color:#203e2b;margin:0; }
 .request-intro p { color:#728073;font-size:13px;line-height:1.6;margin:9px 0 0; }
-.request-layout { display:grid;grid-template-columns:minmax(0,1.6fr) minmax(240px,.72fr);gap:18px;align-items:start; }
+.request-layout { display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start; }
 .panel { background:#fffef9;border:1px solid #e1e5d9;border-radius:13px;box-shadow:0 2px 10px #243e2a08; }
 .form-panel { padding:25px; }
 .form-section-title { font:700 15px sans-serif;color:#294631;margin:0 0 5px; }
