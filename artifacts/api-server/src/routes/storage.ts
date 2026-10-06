@@ -1,6 +1,6 @@
-import { Router, type IRouter } from "express";
+import express, { Router, type IRouter } from "express";
 import { createHash, randomBytes } from "node:crypto";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import {
   GetPrintRequestFileParams,
   RequestUploadUrlBody,
@@ -13,10 +13,9 @@ import {
   hasBranchAccess,
   type SchoolProfile,
 } from "../lib/schoolAuth";
-import { objectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
-const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
   "application/pdf",
   "image/jpeg",
@@ -65,7 +64,7 @@ router.post("/storage/uploads/request-url", async (req, res): Promise<void> => {
   }
   const contentType = parsed.data.contentType.toLowerCase();
   if (parsed.data.size > MAX_UPLOAD_BYTES) {
-    res.status(400).json({ error: "Har bir fayl 15 MB dan kichik bo‘lishi kerak." });
+    res.status(400).json({ error: "Har bir fayl 50 MB gacha bo‘lishi kerak." });
     return;
   }
   if (!ALLOWED_TYPES.has(contentType)) {
@@ -75,8 +74,9 @@ router.post("/storage/uploads/request-url", async (req, res): Promise<void> => {
     return;
   }
 
-  const upload = await objectStorageService.getObjectEntityUploadUrlWithPath();
   const ownerToken = randomBytes(32).toString("hex");
+  const uploadId = randomBytes(16).toString("hex");
+  const objectPath = `/objects/uploads/${uploadId}`;
   const currentAttempt = uploadAttempts.get(ip);
   if (currentAttempt && currentAttempt.resetAt > now) {
     currentAttempt.count += 1;
@@ -84,7 +84,7 @@ router.post("/storage/uploads/request-url", async (req, res): Promise<void> => {
     uploadAttempts.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
   }
   await db.insert(uploadedFilesTable).values({
-    objectPath: upload.objectPath,
+    objectPath,
     ownerClerkId: null,
     uploadToken: hashUploadToken(ownerToken),
     name: parsed.data.name,
@@ -93,12 +93,74 @@ router.post("/storage/uploads/request-url", async (req, res): Promise<void> => {
   });
   res.json(
     RequestUploadUrlResponse.parse({
-      uploadURL: upload.uploadURL,
-      objectPath: upload.objectPath,
+      uploadURL: `/api/storage/uploads/${uploadId}`,
+      objectPath,
       ownerToken,
     }),
   );
 });
+
+router.put(
+  "/storage/uploads/:uploadId",
+  express.raw({ type: "*/*", limit: MAX_UPLOAD_BYTES }),
+  async (req, res): Promise<void> => {
+    const uploadId = req.params.uploadId;
+    const ownerToken = req.get("x-upload-token");
+    const objectPath = `/objects/uploads/${uploadId}`;
+    if (!/^[a-f0-9]{32}$/.test(uploadId) || !ownerToken) {
+      res.status(400).json({ error: "Fayl yuklash ma’lumoti noto‘g‘ri." });
+      return;
+    }
+    if (!Buffer.isBuffer(req.body)) {
+      res.status(400).json({ error: "Fayl ma’lumotlari olinmadi." });
+      return;
+    }
+    const [stored] = await db
+      .select({
+        id: uploadedFilesTable.id,
+        uploadToken: uploadedFilesTable.uploadToken,
+        size: uploadedFilesTable.size,
+        contentType: uploadedFilesTable.contentType,
+        requestId: uploadedFilesTable.requestId,
+      })
+      .from(uploadedFilesTable)
+      .where(eq(uploadedFilesTable.objectPath, objectPath))
+      .limit(1);
+    if (
+      !stored ||
+      stored.requestId !== null ||
+      stored.uploadToken !== hashUploadToken(ownerToken)
+    ) {
+      res.status(404).json({ error: "Yuklash manzili topilmadi." });
+      return;
+    }
+    if (
+      req.body.length !== stored.size ||
+      req.body.length > MAX_UPLOAD_BYTES ||
+      req.get("content-type")?.split(";")[0].trim().toLowerCase() !==
+        "application/octet-stream"
+    ) {
+      res.status(400).json({ error: "Fayl hajmi yoki turi mos kelmadi." });
+      return;
+    }
+    const [updated] = await db
+      .update(uploadedFilesTable)
+      .set({ fileData: req.body })
+      .where(
+        and(
+          eq(uploadedFilesTable.id, stored.id),
+          isNull(uploadedFilesTable.requestId),
+          eq(uploadedFilesTable.uploadToken, hashUploadToken(ownerToken)),
+        ),
+      )
+      .returning({ id: uploadedFilesTable.id });
+    if (!updated) {
+      res.status(404).json({ error: "Yuklash manzili topilmadi." });
+      return;
+    }
+    res.status(204).end();
+  },
+);
 
 router.get(
   "/storage/requests/:requestId/files/:fileIndex",
@@ -130,20 +192,23 @@ router.get(
     }
 
     const files = await db
-      .select()
+      .select({
+        name: uploadedFilesTable.name,
+        size: uploadedFilesTable.size,
+        contentType: uploadedFilesTable.contentType,
+        fileData: uploadedFilesTable.fileData,
+      })
       .from(uploadedFilesTable)
       .where(eq(uploadedFilesTable.requestId, request.id))
-      .orderBy(asc(uploadedFilesTable.id));
-    const attachment = files[params.data.fileIndex];
-    if (!attachment) {
+      .orderBy(asc(uploadedFilesTable.id))
+      .limit(1)
+      .offset(params.data.fileIndex);
+    const attachment = files[0];
+    if (!attachment || !Buffer.isBuffer(attachment.fileData)) {
       res.status(404).json({ error: "Fayl topilmadi." });
       return;
     }
 
-    const objectFile = await objectStorageService.getObjectEntityFile(
-      attachment.objectPath,
-    );
-    const [metadata] = await objectFile.getMetadata();
     const safeName = encodeURIComponent(attachment.name).replace(/'/g, "%27");
     res.setHeader("Content-Type", attachment.contentType);
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -152,19 +217,8 @@ router.get(
       `attachment; filename*=UTF-8''${safeName}`,
     );
     res.setHeader("Cache-Control", "private, no-store");
-    if (metadata.size) {
-      res.setHeader("Content-Length", String(metadata.size));
-    }
-    const stream = objectFile.createReadStream();
-    stream.on("error", (error: Error) => {
-      req.log.error({ err: error, requestId: request.id }, "Attachment stream failed");
-      if (!res.headersSent) {
-        res.status(404).json({ error: "Faylni yuklab bo‘lmadi." });
-      } else {
-        res.destroy(error);
-      }
-    });
-    stream.pipe(res);
+    res.setHeader("Content-Length", String(attachment.size));
+    res.end(attachment.fileData);
   },
 );
 
