@@ -56,7 +56,6 @@ import {
   type SchoolProfile,
   verifyPrinterCredentials,
 } from "../lib/schoolAuth";
-import { objectStorageService } from "../lib/objectStorage";
 import { sql } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -176,7 +175,13 @@ async function loadRequests(
   if (rows.length === 0) return [];
   const ids = rows.map((row) => row.id);
   const files = await db
-    .select()
+    .select({
+      id: uploadedFilesTable.id,
+      requestId: uploadedFilesTable.requestId,
+      name: uploadedFilesTable.name,
+      size: uploadedFilesTable.size,
+      contentType: uploadedFilesTable.contentType,
+    })
     .from(uploadedFilesTable)
     .where(inArray(uploadedFilesTable.requestId, ids))
     .orderBy(asc(uploadedFilesTable.id));
@@ -507,7 +512,14 @@ router.post("/print-requests", async (req, res): Promise<void> => {
     return;
   }
   const uploadedFiles = await db
-    .select()
+    .select({
+      objectPath: uploadedFilesTable.objectPath,
+      uploadToken: uploadedFilesTable.uploadToken,
+      name: uploadedFilesTable.name,
+      size: uploadedFilesTable.size,
+      contentType: uploadedFilesTable.contentType,
+      dataLength: sql<number | null>`octet_length(${uploadedFilesTable.fileData})`,
+    })
     .from(uploadedFilesTable)
     .where(
       and(
@@ -535,24 +547,7 @@ router.post("/print-requests", async (req, res): Promise<void> => {
       res.status(400).json({ error: "Fayl ma’lumotlari mos kelmadi." });
       return;
     }
-    try {
-      const objectFile = await objectStorageService.getObjectEntityFile(
-        stored.objectPath,
-      );
-      const [metadata] = await objectFile.getMetadata();
-      const actualSize = Number(metadata.size);
-      if (
-        !Number.isFinite(actualSize) ||
-        actualSize !== stored.size ||
-        actualSize > 15 * 1024 * 1024 ||
-        metadata.contentType !== stored.contentType
-      ) {
-        res.status(400).json({
-          error: `“${stored.name}” faylining hajmi yoki turi mos kelmadi.`,
-        });
-        return;
-      }
-    } catch {
+    if (stored.dataLength !== stored.size || stored.size > 50 * 1024 * 1024) {
       res.status(400).json({
         error: `“${stored.name}” fayli yuklanmagan. Qayta yuklab ko‘ring.`,
       });
