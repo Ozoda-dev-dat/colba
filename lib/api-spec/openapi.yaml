@@ -276,7 +276,7 @@ paths:
     post:
       operationId: requestUploadUrl
       tags: [storage]
-      summary: Request a private upload URL for an unauthenticated teacher submission
+      summary: Create a one-time upload reservation for a teacher submission
       requestBody:
         required: true
         content:
@@ -285,13 +285,48 @@ paths:
               $ref: "#/components/schemas/UploadUrlInput"
       responses:
         "200":
-          description: Presigned upload URL
+          description: API upload path, object path, and one-time owner token
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/UploadUrl"
         "400":
           description: Unsupported file or size
+  /storage/uploads/{uploadId}:
+    put:
+      operationId: uploadFileToDatabase
+      tags: [storage]
+      summary: Store one uploaded file in Neon
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-f0-9]{32}$"
+        - name: X-Upload-Token
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 64
+            maxLength: 64
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "204":
+          description: File stored
+        "400":
+          description: File size, content type, or upload token is invalid
+        "404":
+          description: Upload reservation not found
+        "413":
+          description: File exceeds the maximum size
   /storage/requests/{requestId}/files/{fileIndex}:
     get:
       operationId: getPrintRequestFile
@@ -440,6 +475,7 @@ components:
         size:
           type: integer
           minimum: 1
+          maximum: 52428800
         contentType:
           type: string
           minLength: 1
@@ -536,6 +572,7 @@ components:
         size:
           type: integer
           minimum: 1
+          maximum: 52428800
         contentType:
           type: string
           minLength: 1
@@ -545,7 +582,7 @@ components:
       properties:
         uploadURL:
           type: string
-          format: uri
+          description: Relative API path for uploading the file bytes
         objectPath:
           type: string
         ownerToken:
