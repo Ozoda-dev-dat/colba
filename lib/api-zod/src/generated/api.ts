@@ -201,6 +201,7 @@ export const createPrintRequestBodyNoteMax = 1000;
 
 export const createPrintRequestBodyAttachmentsItemNameMax = 255;
 
+export const createPrintRequestBodyAttachmentsItemSizeMax = 52428800;
 
 
 export const createPrintRequestBodyAttachmentsItemOwnerTokenMin = 20;
@@ -219,7 +220,7 @@ export const CreatePrintRequestBody = zod.object({
   "attachments": zod.array(zod.object({
   "objectPath": zod.string().min(1),
   "name": zod.string().min(1).max(createPrintRequestBodyAttachmentsItemNameMax),
-  "size": zod.number().int().min(1),
+  "size": zod.number().int().min(1).max(createPrintRequestBodyAttachmentsItemSizeMax),
   "contentType": zod.string().min(1),
   "ownerToken": zod.string().min(createPrintRequestBodyAttachmentsItemOwnerTokenMin)
 })).min(1).max(createPrintRequestBodyAttachmentsMax)
@@ -304,25 +305,48 @@ export const UpdatePrintRequestStatusResponse = zod.object({
 
 
 /**
- * @summary Request a private upload URL for an unauthenticated teacher submission
+ * @summary Create a one-time upload reservation for a teacher submission
  */
 export const requestUploadUrlBodyNameMax = 255;
 
+export const requestUploadUrlBodySizeMax = 52428800;
 
 
 
 
 export const RequestUploadUrlBody = zod.object({
   "name": zod.string().min(1).max(requestUploadUrlBodyNameMax),
-  "size": zod.number().int().min(1),
+  "size": zod.number().int().min(1).max(requestUploadUrlBodySizeMax),
   "contentType": zod.string().min(1)
 })
 
 export const RequestUploadUrlResponse = zod.object({
-  "uploadURL": zod.string().url(),
+  "uploadURL": zod.string().describe('Relative API path for uploading the file bytes'),
   "objectPath": zod.string(),
   "ownerToken": zod.string()
 })
+
+
+/**
+ * @summary Store one uploaded file in Neon
+ */
+export const uploadFileToDatabasePathUploadIdRegExp = new RegExp('^[a-f0-9]{32}$');
+
+
+export const UploadFileToDatabaseParams = zod.object({
+  "uploadId": zod.coerce.string().regex(uploadFileToDatabasePathUploadIdRegExp)
+})
+
+export const uploadFileToDatabaseHeaderXUploadTokenMin = 64;
+export const uploadFileToDatabaseHeaderXUploadTokenMax = 64;
+
+
+
+export const UploadFileToDatabaseHeader = zod.object({
+  "X-Upload-Token": zod.string().min(uploadFileToDatabaseHeaderXUploadTokenMin).max(uploadFileToDatabaseHeaderXUploadTokenMax)
+})
+
+export const UploadFileToDatabaseResponse = zod.void()
 
 
 /**
