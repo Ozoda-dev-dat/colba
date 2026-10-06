@@ -1,4 +1,5 @@
 import {
+  customType,
   integer,
   pgTable,
   serial,
@@ -7,6 +8,10 @@ import {
 } from "drizzle-orm/pg-core";
 import { printRequestsTable } from "./print-requests";
 import { schoolUsersTable } from "./school-users";
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
 
 export const uploadedFilesTable = pgTable("uploaded_files", {
   id: serial("id").primaryKey(),
@@ -21,6 +26,7 @@ export const uploadedFilesTable = pgTable("uploaded_files", {
   name: text("name").notNull(),
   size: integer("size").notNull(),
   contentType: text("content_type").notNull(),
+  fileData: bytea("file_data"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
