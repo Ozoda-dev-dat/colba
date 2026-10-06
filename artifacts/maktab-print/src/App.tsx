@@ -32,6 +32,7 @@ const acceptedTypes = new Set([
   'application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]);
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 function fileType(file: File) {
   if (acceptedTypes.has(file.type.toLowerCase())) return file.type.toLowerCase();
@@ -42,6 +43,45 @@ function fileType(file: File) {
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   };
   return types[extension || ''] || '';
+}
+async function uploadDatabaseFile(
+  uploadURL: string,
+  ownerToken: string,
+  file: File,
+  onProgress: (bytesUploaded: number) => void,
+) {
+  const targetUrl = new URL(
+    uploadURL,
+    `${apiBaseUrl || window.location.origin}/`,
+  ).toString();
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', targetUrl);
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.setRequestHeader('X-Upload-Token', ownerToken);
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) onProgress(event.loaded);
+    });
+    xhr.addEventListener('error', () => {
+      reject(new Error(`${file.name} yuklanmadi. Internet aloqasini tekshirib, qayta yuboring.`));
+    });
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 204) {
+        onProgress(file.size);
+        resolve();
+        return;
+      }
+      let message = `${file.name} faylini yuklab bo‘lmadi.`;
+      try {
+        const payload = JSON.parse(xhr.responseText) as { error?: unknown };
+        if (typeof payload.error === 'string') message = payload.error;
+      } catch {
+        // Keep the fallback message when the server response isn't JSON.
+      }
+      reject(new Error(message));
+    });
+    xhr.send(file);
+  });
 }
 function formatDate(value: string, withTime = false) {
   const date = new Date(value);
@@ -124,14 +164,14 @@ function PublicRequest() {
   const [error, setError] = useState('');
   const [doneId, setDoneId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<{ phase: 'uploading' | 'saving'; current: number; total: number } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ phase: 'uploading' | 'saving'; current: number; total: number; uploadedBytes: number; totalBytes: number } | null>(null);
 
   function addFiles(incoming: File[]) {
     if (busy) return;
     const combined = [...files, ...incoming];
     if (combined.length > 8) { setError('Ko‘pi bilan 8 ta fayl biriktirish mumkin.'); return; }
-    if (combined.some((file) => !fileType(file) || file.size > 15 * 1024 * 1024)) {
-      setError('PDF, JPG, PNG, WEBP yoki Word fayllari qabul qilinadi. Har biri 15 MB gacha.');
+    if (combined.some((file) => !fileType(file) || file.size > MAX_UPLOAD_BYTES)) {
+      setError('PDF, JPG, PNG, WEBP yoki Word fayllari qabul qilinadi. Har biri 50 MB gacha.');
       return;
     }
     setFiles(combined);
@@ -153,16 +193,22 @@ function PublicRequest() {
     setBusy(true);
     try {
       const attachments: AttachmentInput[] = [];
-      setUploadProgress({ phase: 'uploading', current: 0, total: files.length });
+      const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+      let completedBytes = 0;
+      setUploadProgress({ phase: 'uploading', current: 0, total: files.length, uploadedBytes: 0, totalBytes });
       for (const [index, file] of files.entries()) {
         const metadata = { name: file.name, size: file.size, contentType: fileType(file) };
         const upload = await uploadUrl.mutateAsync({ data: metadata });
-        const response = await fetch(upload.uploadURL, { method: 'PUT', headers: { 'Content-Type': metadata.contentType }, body: file });
-        if (!response.ok) throw new Error(`${file.name} faylini yuklab bo‘lmadi.`);
+        await uploadDatabaseFile(upload.uploadURL, upload.ownerToken, file, (bytesUploaded) => {
+          setUploadProgress((progress) => progress
+            ? { ...progress, uploadedBytes: completedBytes + bytesUploaded }
+            : progress);
+        });
         attachments.push({ ...metadata, objectPath: upload.objectPath, ownerToken: upload.ownerToken });
-        setUploadProgress({ phase: 'uploading', current: index + 1, total: files.length });
+        completedBytes += file.size;
+        setUploadProgress({ phase: 'uploading', current: index + 1, total: files.length, uploadedBytes: completedBytes, totalBytes });
       }
-      setUploadProgress({ phase: 'saving', current: files.length, total: files.length });
+      setUploadProgress({ phase: 'saving', current: files.length, total: files.length, uploadedBytes: totalBytes, totalBytes });
       const result = await createRequest.mutateAsync({ data: {
         requesterName: requesterName.trim(), title: title.trim(), branchId: Number(branchId),
         copies: Number(copies), dueAt: new Date(dueAt).toISOString(),
@@ -174,6 +220,11 @@ function PublicRequest() {
     } finally { setBusy(false); setUploadProgress(null); }
   }
   const minDate = localDateTimeValue(new Date(Math.ceil((Date.now() + 60_000) / 60_000) * 60_000));
+  const progressPercent = uploadProgress
+    ? uploadProgress.phase === 'saving'
+      ? 100
+      : Math.min(100, uploadProgress.uploadedBytes / Math.max(uploadProgress.totalBytes, 1) * 100)
+    : 0;
   return <main className="request-page">
     <header className="request-top"><Link href="/" aria-label="Maktab Print bosh sahifa"><Brand /></Link><Link href="/" className="button ghost"><ArrowLeft /> Bosh sahifa</Link></header>
     <div className="request-shell">
@@ -186,11 +237,11 @@ function PublicRequest() {
              <div className="field full"><label htmlFor="material-title">Material sarlavhasi *</label><input id="material-title" value={title} onChange={(e) => setTitle(e.target.value)} minLength={2} maxLength={160} required data-testid="input-request-title" /></div>
             <div className="field"><label htmlFor="request-copies">Nusxalar soni *</label><input id="request-copies" type="number" min="1" max="5000" value={copies} onChange={(e) => setCopies(e.target.value)} required data-testid="input-request-copies" /></div>
              <div className="field"><label htmlFor="request-due">Kerakli sana va vaqt *</label><input id="request-due" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} min={minDate} required data-testid="input-request-deadline" /></div>
-            <div className="field full"><label>Material fayli * <span className="field-hint">— 1–8 ta fayl</span></label><label className={`drop-zone ${busy ? 'disabled' : ''}`} htmlFor="request-files" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}><Upload /><strong>Faylni tanlang yoki shu yerga olib keling</strong><span className="field-hint">PDF, JPG, PNG, WEBP yoki Word · 15 MB gacha</span><input id="request-files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" onChange={onPick} hidden data-testid="input-request-files" /></label>{files.length > 0 && <div className="file-list">{files.map((file, index) => <div className="file-line" key={`${file.name}-${index}`}><FileText size={15} /><span>{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</span><button type="button" aria-label={`${file.name} faylini olib tashlash`} onClick={() => setFiles(files.filter((_, i) => i !== index))}><X size={15} /></button></div>)}</div>}</div>
+             <div className="field full"><label>Material fayli * <span className="field-hint">— 1–8 ta fayl</span></label><label className={`drop-zone ${busy ? 'disabled' : ''}`} htmlFor="request-files" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}><Upload /><strong>Faylni tanlang yoki shu yerga olib keling</strong><span className="field-hint">PDF, JPG, PNG, WEBP yoki Word · 50 MB gacha</span><input id="request-files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" onChange={onPick} hidden data-testid="input-request-files" /></label>{files.length > 0 && <div className="file-list">{files.map((file, index) => <div className="file-line" key={`${file.name}-${index}`}><FileText size={15} /><span>{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</span><button type="button" aria-label={`${file.name} faylini olib tashlash`} onClick={() => setFiles(files.filter((_, i) => i !== index))}><X size={15} /></button></div>)}</div>}</div>
              <div className="field full"><label htmlFor="request-note">Bosmaxona uchun izoh <span className="field-hint">— ixtiyoriy</span></label><textarea id="request-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} data-testid="input-request-note" /></div>
           </div></fieldset>
           {error && <p role="alert" className="inline-error">{error}</p>}
-          {uploadProgress && <div className="upload-progress" role="status" aria-live="polite"><div>{uploadProgress.phase === 'saving' ? 'So‘rov saqlanmoqda…' : `Fayllar yuklanmoqda · ${uploadProgress.current} / ${uploadProgress.total}`}</div><div className="progress-track" role="progressbar" aria-label="Yuborish jarayoni" aria-valuemin={0} aria-valuemax={uploadProgress.total} aria-valuenow={uploadProgress.phase === 'saving' ? uploadProgress.total : uploadProgress.current}><span style={{ width: `${uploadProgress.phase === 'saving' ? 100 : uploadProgress.current / uploadProgress.total * 100}%` }} /></div></div>}
+           {uploadProgress && <div className="upload-progress" role="status" aria-live="polite" data-testid="status-upload-progress"><div>{uploadProgress.phase === 'saving' ? 'So‘rov saqlanmoqda…' : `Fayllar yuklanmoqda · ${uploadProgress.current}/${uploadProgress.total} · ${(uploadProgress.uploadedBytes / 1024 / 1024).toFixed(1)} / ${(uploadProgress.totalBytes / 1024 / 1024).toFixed(1)} MB`}</div><div className="progress-track" role="progressbar" aria-label="Yuborish jarayoni" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent} data-testid="progress-upload"><span style={{ width: `${progressPercent}%` }} /></div></div>}
           <div className="form-submit"><Button type="submit" disabled={busy || branches.isLoading || branches.isError || uploadUrl.isPending || createRequest.isPending} data-testid="button-submit-request">{busy ? uploadProgress?.phase === 'saving' ? 'Saqlanmoqda…' : `Yuklanmoqda ${uploadProgress?.current ?? 0}/${uploadProgress?.total ?? files.length}` : 'So‘rovni yuborish'} {busy ? <Upload /> : <ArrowRight />}</Button></div>
         </form>
          </div>
