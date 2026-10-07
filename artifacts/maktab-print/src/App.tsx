@@ -250,6 +250,23 @@ function PublicRequest() {
   </main>;
 }
 
+function getSignInErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const apiError = error as { status?: unknown; data?: unknown };
+    const body = apiError.data;
+    if (body && typeof body === 'object' && 'error' in body && typeof body.error === 'string') {
+      return body.error;
+    }
+    if (apiError.status === 404) {
+      return 'Kirish xizmati topilmadi. Sahifani to‘g‘ri manzildan oching.';
+    }
+    if (typeof apiError.status === 'number' && apiError.status >= 500) {
+      return 'Serverda vaqtinchalik xatolik. Birozdan so‘ng qayta urinib ko‘ring.';
+    }
+  }
+  return 'Server bilan bog‘lanib bo‘lmadi. https://colba-2.onrender.com manzilidan qayta kiring.';
+}
+
 function SignInPage() {
   const login = usePrinterLogin();
   const client = useQueryClient();
@@ -264,8 +281,8 @@ function SignInPage() {
       await login.mutateAsync({ data: { username: username.trim(), password } });
       await client.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
       navigate('/app');
-    } catch {
-      setError('Foydalanuvchi nomi yoki parol noto‘g‘ri.');
+    } catch (error) {
+      setError(getSignInErrorMessage(error));
     }
   }
   return <main className="auth-page"><Link href="/" className="auth-brand"><Brand /></Link><section className="auth-card"><h1>Kirish</h1><form className="auth-form" onSubmit={submit}>
