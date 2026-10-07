@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import { rm } from "node:fs/promises";
@@ -10,7 +11,28 @@ globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 
+function buildFrontend() {
+  const workspaceRoot = path.resolve(artifactDir, "../..");
+  execFileSync(
+    "pnpm",
+    ["--filter", "@workspace/maktab-print", "run", "build"],
+    {
+      cwd: workspaceRoot,
+      env: {
+        ...process.env,
+        NODE_ENV: "production",
+        PORT: process.env.PORT ?? "10000",
+        BASE_PATH: "/",
+        VITE_API_BASE_URL: "",
+      },
+      stdio: "inherit",
+    },
+  );
+}
+
 async function buildAll() {
+  buildFrontend();
+
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
 
