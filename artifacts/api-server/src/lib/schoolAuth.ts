@@ -1,7 +1,6 @@
 import {
   createHash,
   createHmac,
-  scrypt,
   timingSafeEqual,
 } from "node:crypto";
 import type { Request, Response } from "express";
@@ -29,14 +28,6 @@ const PRINTER_BRANCH_NAMES = ["Tinchlik", "Chilonzor", "Yunusobod"];
 const SESSION_COOKIE = "maktab_printer_session";
 const SESSION_LIFETIME_SECONDS = 12 * 60 * 60;
 type SessionPayload = { username: string; expiresAt: number };
-const PASSWORD_HASH_BYTES = 64;
-const SCRYPT_OPTIONS = {
-  N: 32768,
-  r: 8,
-  p: 1,
-  maxmem: 64 * 1024 * 1024,
-};
-const DUMMY_SALT = Buffer.from("f69d2aa53ee1780dc20707e21e94c4ab", "hex");
 
 function sessionSecret(): string {
   const secret = process.env.SESSION_SECRET;
@@ -100,41 +91,6 @@ function sessionUsername(req: Request): string | null {
   }
 }
 
-function derivePassword(password: string, salt: Buffer): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    scrypt(password, salt, PASSWORD_HASH_BYTES, SCRYPT_OPTIONS, (error, key) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(key);
-    });
-  });
-}
-
-async function matchesPasswordHash(
-  password: string,
-  encodedHash: string,
-): Promise<boolean> {
-  const [algorithm, n, r, p, saltHex, keyHex, ...extra] =
-    encodedHash.split("$");
-  if (
-    extra.length > 0 ||
-    algorithm !== "scrypt" ||
-    n !== String(SCRYPT_OPTIONS.N) ||
-    r !== String(SCRYPT_OPTIONS.r) ||
-    p !== String(SCRYPT_OPTIONS.p) ||
-    !/^[a-f0-9]{32}$/i.test(saltHex ?? "") ||
-    !/^[a-f0-9]{128}$/i.test(keyHex ?? "")
-  ) {
-    return false;
-  }
-
-  const expected = Buffer.from(keyHex, "hex");
-  const actual = await derivePassword(password, Buffer.from(saltHex, "hex"));
-  return timingSafeEqual(actual, expected);
-}
-
 export async function verifyPrinterCredentials(
   username: string,
   password: string,
@@ -149,11 +105,11 @@ export async function verifyPrinterCredentials(
     .limit(1);
 
   if (!account) {
-    await derivePassword(password, DUMMY_SALT);
     return false;
   }
 
-  const matches = await matchesPasswordHash(password, account.passwordHash);
+  // Parollarni to'g'ridan-to'g'ri (oddiy matn sifatida) solishtirish
+  const matches = account.passwordHash === password;
   return account.isActive && matches;
 }
 
