@@ -1,218 +1,668 @@
+import { createHash } from "node:crypto";
+import { Router, type IRouter } from "express";
 import {
-  createHash,
-  createHmac,
-  timingSafeEqual,
-} from "node:crypto";
-import type { Request, Response } from "express";
-import { and, asc, eq, inArray } from "drizzle-orm";
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lt,
+} from "drizzle-orm";
 import {
-  db,
+  CreateBranchBody,
+  CreateBranchResponse,
+  CreatePrintRequestBody,
+  CreatePrintRequestResponse,
+  GetCurrentUserResponse,
+  GetDashboardResponse,
+  GetPrintRequestParams,
+  GetPrintRequestResponse,
+  ListBranchesResponse,
+  ListPublicBranchesResponse,
+  ListPrintRequestsQueryParams,
+  ListPrintRequestsResponse,
+  ListUsersResponse,
+  PrinterLoginBody,
+  PrinterLoginResponse,
+  UpdatePrintRequestStatusBody,
+  UpdatePrintRequestStatusParams,
+  UpdatePrintRequestStatusResponse,
+  UpdateUserAssignmentBody,
+  UpdateUserAssignmentParams,
+  UpdateUserAssignmentResponse,
+} from "@workspace/api-zod";
+import {
   branchesTable,
-  printerAccountsTable,
+  db,
+  printRequestsTable,
+  requestStatusEnum,
+  schoolUsersTable,
+  uploadedFilesTable,
 } from "@workspace/db";
+import type { Response } from "express";
+import type { Request } from "express";
+import {
+  clearPrinterSession,
+  ensurePrinterBranches,
+  findPrinterAccountForBranch,
+  getPrinterProfile,
+  getSchoolProfile,
+  hasBranchAccess,
+  isAdmin,
+  setPrinterSession,
+  type SchoolProfile,
+  verifyPrinterCredentials,
+} from "../lib/schoolAuth";
+import { sql } from "drizzle-orm";
 
-export type SchoolRole = "admin" | "teacher" | "printer";
+const router: IRouter = Router();
 
-export interface SchoolProfile {
-  clerkId: string;
-  fullName: string;
-  email: string;
-  role: SchoolRole;
-  branchId: number | null;
-  branchName: string | null;
-  isActive: boolean;
-}
+type RequestRow = {
+  id: number;
+  title: string;
+  copies: number;
+  dueAt: Date;
+  note: string | null;
+  status: (typeof requestStatusEnum.enumValues)[number];
+  createdAt: Date;
+  branchId: number;
+  branchName: string;
+  requesterName: string;
+  attachments: Array<{
+    fileIndex: number;
+    name: string;
+    size: number;
+    contentType: string;
+  }>;
+};
 
-const PRINTER_BRANCH_NAMES = ["Tinchlik", "Chilonzor", "Yunusobod"];
-
-const SESSION_COOKIE = "maktab_printer_session";
-const SESSION_LIFETIME_SECONDS = 12 * 60 * 60;
-type SessionPayload = { username: string; expiresAt: number };
-
-function sessionSecret(): string {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) throw new Error("SESSION_SECRET is required for printer sessions.");
-  return secret;
-}
-
-function digest(value: string): Buffer {
-  return createHash("sha256").update(value).digest();
-}
-
-function safeEqual(left: string, right: string): boolean {
-  return timingSafeEqual(digest(left), digest(right));
-}
-
-function sign(payload: string): string {
-  return createHmac("sha256", sessionSecret()).update(payload).digest("base64url");
-}
-
-function readCookie(req: Request, name: string): string | undefined {
-  const cookieHeader = req.headers.cookie;
-  if (!cookieHeader) return undefined;
-  for (const part of cookieHeader.split(";")) {
-    const separator = part.indexOf("=");
-    if (separator < 0) continue;
-    if (part.slice(0, separator).trim() === name) {
-      return part.slice(separator + 1).trim();
-    }
-  }
-  return undefined;
-}
-
-function sessionUsername(req: Request): string | null {
-  const token = readCookie(req, SESSION_COOKIE);
-  if (!token) return null;
-  const [encodedPayload, suppliedSignature, ...extra] = token.split(".");
-  if (!encodedPayload || !suppliedSignature || extra.length) return null;
-
-  let expectedSignature: string;
-  try {
-    expectedSignature = sign(encodedPayload);
-  } catch {
+async function activeProfile(
+  req: Request,
+  res: Response,
+): Promise<SchoolProfile | null> {
+  const profile = await getSchoolProfile(req);
+  if (!profile) {
+    res.status(401).json({ error: "Tizimga kirish kerak." });
     return null;
   }
-  if (!safeEqual(suppliedSignature, expectedSignature)) return null;
-
-  try {
-    const payload = JSON.parse(
-      Buffer.from(encodedPayload, "base64url").toString("utf8"),
-    ) as SessionPayload;
-    if (
-      typeof payload.username !== "string" ||
-      typeof payload.expiresAt !== "number" ||
-      payload.expiresAt <= Date.now()
-    ) {
-      return null;
-    }
-    return payload.username;
-  } catch {
+  if (!profile.isActive) {
+    res.status(403).json({ error: "Hisobingiz vaqtincha o‘chirilgan." });
     return null;
   }
+  return profile;
 }
 
-export async function verifyPrinterCredentials(
-  username: string,
-  password: string,
-): Promise<boolean> {
-  const [account] = await db
-    .select({
-      passwordHash: printerAccountsTable.passwordHash,
-      isActive: printerAccountsTable.isActive,
-    })
-    .from(printerAccountsTable)
-    .where(eq(printerAccountsTable.username, username))
-    .limit(1);
+function requestVisibility(profile: SchoolProfile) {
+  if (profile.role === "admin") return undefined;
+  if (profile.role === "printer") {
+    return profile.branchId
+      ? eq(printRequestsTable.branchId, profile.branchId)
+      : sqlFalse();
+  }
+  return eq(printRequestsTable.requestedByUserId, profile.clerkId);
+}
 
-  if (!account) {
+function sqlFalse() {
+  return eq(printRequestsTable.id, -1);
+}
+
+function hashUploadToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 8;
+
+function isLoginRateLimited(ip: string): boolean {
+  const now = Date.now();
+  for (const [key, attempt] of loginAttempts) {
+    if (attempt.resetAt <= now) loginAttempts.delete(key);
+  }
+  const current = loginAttempts.get(ip);
+  if (!current || current.resetAt <= now) {
+    loginAttempts.set(ip, { count: 0, resetAt: now + LOGIN_WINDOW_MS });
     return false;
   }
-
-  // Parollarni to'g'ridan-to'g'ri (oddiy matn sifatida) solishtirish
-  const matches = account.passwordHash === password;
-  return account.isActive && matches;
+  return current.count >= MAX_LOGIN_ATTEMPTS;
 }
 
-export function setPrinterSession(res: Response, username: string): void {
-  const encodedPayload = Buffer.from(
-    JSON.stringify({
-      username,
-      expiresAt: Date.now() + SESSION_LIFETIME_SECONDS * 1000,
-    } satisfies SessionPayload),
-  ).toString("base64url");
-  const token = `${encodedPayload}.${sign(encodedPayload)}`;
-  
-  // SameSite=None va Secure orqali turli domenlardagi brauzer so'rovlariga ruxsat berish
-  res.append(
-    "Set-Cookie",
-    `${SESSION_COOKIE}=${token}; Path=/; Max-Age=${SESSION_LIFETIME_SECONDS}; HttpOnly; Secure; SameSite=None`,
-  );
+function recordLoginFailure(ip: string): void {
+  const current = loginAttempts.get(ip);
+  if (current) current.count += 1;
 }
 
-export function clearPrinterSession(res: Response): void {
-  res.append(
-    "Set-Cookie",
-    `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None`,
-  );
-}
-
-export async function ensurePrinterBranches() {
-  await Promise.all(
-    PRINTER_BRANCH_NAMES.map((name) =>
-      db.insert(branchesTable).values({ name }).onConflictDoNothing(),
-    ),
-  );
+async function loadRequests(
+  profile: SchoolProfile,
+  status?: string,
+  requestId?: number,
+): Promise<RequestRow[]> {
+  const conditions = [
+    requestVisibility(profile),
+    status
+      ? eq(
+          printRequestsTable.status,
+          status as (typeof requestStatusEnum.enumValues)[number],
+        )
+      : undefined,
+    requestId ? eq(printRequestsTable.id, requestId) : undefined,
+  ];
   const rows = await db
-    .select({ id: branchesTable.id, name: branchesTable.name })
-    .from(branchesTable)
-    .where(inArray(branchesTable.name, PRINTER_BRANCH_NAMES));
-  return PRINTER_BRANCH_NAMES.flatMap((name) =>
-    rows.filter((row) => row.name === name),
-  );
+    .select({
+      id: printRequestsTable.id,
+      title: printRequestsTable.title,
+      copies: printRequestsTable.copies,
+      dueAt: printRequestsTable.dueAt,
+      note: printRequestsTable.note,
+      status: printRequestsTable.status,
+      createdAt: printRequestsTable.createdAt,
+      branchId: printRequestsTable.branchId,
+      branchName: branchesTable.name,
+      requesterName: sql<string>`coalesce(${printRequestsTable.requesterName}, ${schoolUsersTable.fullName}, 'Ustoz')`,
+    })
+    .from(printRequestsTable)
+    .innerJoin(branchesTable, eq(printRequestsTable.branchId, branchesTable.id))
+    .leftJoin(
+      schoolUsersTable,
+      eq(printRequestsTable.requestedByUserId, schoolUsersTable.clerkId),
+    )
+    .where(and(...conditions))
+    .orderBy(asc(printRequestsTable.dueAt), asc(printRequestsTable.id));
+
+  if (rows.length === 0) return [];
+  const ids = rows.map((row) => row.id);
+  const files = await db
+    .select({
+      id: uploadedFilesTable.id,
+      requestId: uploadedFilesTable.requestId,
+      name: uploadedFilesTable.name,
+      size: uploadedFilesTable.size,
+      contentType: uploadedFilesTable.contentType,
+    })
+    .from(uploadedFilesTable)
+    .where(inArray(uploadedFilesTable.requestId, ids))
+    .orderBy(asc(uploadedFilesTable.id));
+  const filesByRequest = new Map<number, typeof files>();
+  for (const file of files) {
+    if (file.requestId === null) continue;
+    const requestFiles = filesByRequest.get(file.requestId) ?? [];
+    requestFiles.push(file);
+    filesByRequest.set(file.requestId, requestFiles);
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    attachments: (filesByRequest.get(row.id) ?? []).map((file, fileIndex) => ({
+      fileIndex,
+      name: file.name,
+      size: file.size,
+      contentType: file.contentType,
+    })),
+  }));
 }
 
-export async function findPrinterAccountForBranch(
-  branchId: number,
-): Promise<string | null> {
-  const [account] = await db
-    .select({ username: printerAccountsTable.username })
-    .from(printerAccountsTable)
+router.get("/me", async (req, res): Promise<void> => {
+  const profile = await getSchoolProfile(req);
+  if (!profile) {
+    res.status(401).json({ error: "Tizimga kirish kerak." });
+    return;
+  }
+  res.json(GetCurrentUserResponse.parse(profile));
+});
+
+router.post("/auth/login", async (req, res): Promise<void> => {
+  const parsed = PrinterLoginBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Login va parolni kiriting." });
+    return;
+  }
+  const ip = req.ip || "unknown";
+  if (isLoginRateLimited(ip)) {
+    res.status(429).json({ error: "Urinishlar ko‘payib ketdi. 15 daqiqadan so‘ng qayta urinib ko‘ring." });
+    return;
+  }
+  if (
+    !(await verifyPrinterCredentials(
+      parsed.data.username,
+      parsed.data.password,
+    ))
+  ) {
+    recordLoginFailure(ip);
+    res.status(401).json({ error: "Login yoki parol noto‘g‘ri." });
+    return;
+  }
+
+  await ensurePrinterBranches();
+  const profile = await getPrinterProfile(parsed.data.username);
+  if (!profile) {
+    res.status(503).json({ error: "Filial hisobi vaqtincha ishlamayapti." });
+    return;
+  }
+  loginAttempts.delete(ip);
+  setPrinterSession(res, parsed.data.username);
+  res.json(PrinterLoginResponse.parse(profile));
+});
+
+router.post("/auth/logout", (_req, res): void => {
+  clearPrinterSession(res);
+  res.json({ success: true });
+});
+
+router.get("/public/branches", async (_req, res): Promise<void> => {
+  const branches = await ensurePrinterBranches();
+  res.json(ListPublicBranchesResponse.parse(branches));
+});
+
+router.get("/dashboard", async (req, res): Promise<void> => {
+  const profile = await activeProfile(req, res);
+  if (!profile) return;
+
+  const requests = await loadRequests(profile);
+  const openRequests = requests.filter((request) =>
+    ["queued", "in_progress", "ready"].includes(request.status),
+  );
+  const now = new Date();
+  const urgentUntil = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+  const day = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tashkent",
+  }).format(now);
+  const dayStart = new Date(`${day}T00:00:00+05:00`);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const completedConditions = [
+    requestVisibility(profile),
+    eq(printRequestsTable.status, "completed"),
+    gte(printRequestsTable.completedAt, dayStart),
+    lt(printRequestsTable.completedAt, dayEnd),
+  ];
+  const [completedCount] = await db
+    .select({ value: count() })
+    .from(printRequestsTable)
+    .where(and(...completedConditions));
+
+  res.json(
+    GetDashboardResponse.parse({
+      openCount: openRequests.length,
+      urgentCount: requests.filter(
+        (request) =>
+          request.status === "queued" && request.dueAt <= urgentUntil,
+      ).length,
+      inProgressCount: requests.filter(
+        (request) => request.status === "in_progress",
+      ).length,
+      readyCount: requests.filter((request) => request.status === "ready")
+        .length,
+      completedToday: completedCount.value,
+      overdueCount: openRequests.filter((request) => request.dueAt < now).length,
+    }),
+  );
+});
+
+router.get("/branches", async (req, res): Promise<void> => {
+  const profile = await activeProfile(req, res);
+  if (!profile) return;
+
+  const branches = profile.role === "admin"
+    ? await db.select({ id: branchesTable.id, name: branchesTable.name })
+        .from(branchesTable)
+        .orderBy(asc(branchesTable.name))
+    : profile.branchId
+      ? await db
+          .select({ id: branchesTable.id, name: branchesTable.name })
+          .from(branchesTable)
+          .where(eq(branchesTable.id, profile.branchId))
+      : [];
+  res.json(ListBranchesResponse.parse(branches));
+});
+
+router.post("/branches", async (req, res): Promise<void> => {
+  const profile = await activeProfile(req, res);
+  if (!profile) return;
+  if (!isAdmin(profile)) {
+    res.status(403).json({ error: "Faqat administrator filial qo‘sha oladi." });
+    return;
+  }
+  const parsed = CreateBranchBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const name = parsed.data.name.trim();
+  if (name.length < 2) {
+    res.status(400).json({ error: "Filial nomi kamida 2 ta belgidan iborat bo‘lsin." });
+    return;
+  }
+  try {
+    const [branch] = await db
+      .insert(branchesTable)
+      .values({ name })
+      .returning({ id: branchesTable.id, name: branchesTable.name });
+    res.status(201).json(CreateBranchResponse.parse(branch));
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "23505"
+    ) {
+      res.status(409).json({ error: "Bu filial nomi allaqachon mavjud." });
+      return;
+    }
+    throw error;
+  }
+});
+
+router.get("/users", async (req, res): Promise<void> => {
+  const profile = await activeProfile(req, res);
+  if (!profile) return;
+  if (!isAdmin(profile)) {
+    res.status(403).json({ error: "Faqat administrator foydalanuvchilarni boshqaradi." });
+    return;
+  }
+
+  const users = await db
+    .select({
+      clerkId: schoolUsersTable.clerkId,
+      fullName: schoolUsersTable.fullName,
+      email: schoolUsersTable.email,
+      role: schoolUsersTable.role,
+      branchId: schoolUsersTable.branchId,
+      branchName: branchesTable.name,
+      isActive: schoolUsersTable.isActive,
+      createdAt: schoolUsersTable.createdAt,
+    })
+    .from(schoolUsersTable)
+    .leftJoin(branchesTable, eq(schoolUsersTable.branchId, branchesTable.id))
+    .orderBy(desc(schoolUsersTable.createdAt));
+  res.json(ListUsersResponse.parse(users));
+});
+
+router.patch("/users/:clerkId", async (req, res): Promise<void> => {
+  const profile = await activeProfile(req, res);
+  if (!profile) return;
+  if (!isAdmin(profile)) {
+    res.status(403).json({ error: "Faqat administrator foydalanuvchilarni boshqaradi." });
+    return;
+  }
+  const params = UpdateUserAssignmentParams.safeParse(req.params);
+  const body = UpdateUserAssignmentBody.safeParse(req.body);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  if (body.data.role !== "admin" && body.data.branchId === null) {
+    res.status(400).json({ error: "Ustoz yoki printerchi uchun filial tanlang." });
+    return;
+  }
+  if (body.data.branchId !== null) {
+    const [branch] = await db
+      .select({ id: branchesTable.id })
+      .from(branchesTable)
+      .where(eq(branchesTable.id, body.data.branchId))
+      .limit(1);
+    if (!branch) {
+      res.status(400).json({ error: "Tanlangan filial topilmadi." });
+      return;
+    }
+  }
+
+  const [target] = await db
+    .select({
+      clerkId: schoolUsersTable.clerkId,
+      role: schoolUsersTable.role,
+      isActive: schoolUsersTable.isActive,
+    })
+    .from(schoolUsersTable)
+    .where(eq(schoolUsersTable.clerkId, params.data.clerkId))
+    .limit(1);
+  if (!target) {
+    res.status(404).json({ error: "Foydalanuvchi topilmadi." });
+    return;
+  }
+
+  if (
+    target.role === "admin" &&
+    target.isActive &&
+    (body.data.role !== "admin" || !body.data.isActive)
+  ) {
+    const [adminCount] = await db
+      .select({ value: count() })
+      .from(schoolUsersTable)
+      .where(
+        and(
+          eq(schoolUsersTable.role, "admin"),
+          eq(schoolUsersTable.isActive, true),
+        ),
+      );
+    if (adminCount.value <= 1) {
+      res.status(409).json({
+        error: "Maktabda kamida bitta faol administrator qolishi kerak.",
+      });
+      return;
+    }
+  }
+
+  await db
+    .update(schoolUsersTable)
+    .set(body.data)
+    .where(eq(schoolUsersTable.clerkId, params.data.clerkId));
+  const [updated] = await db
+    .select({
+      clerkId: schoolUsersTable.clerkId,
+      fullName: schoolUsersTable.fullName,
+      email: schoolUsersTable.email,
+      role: schoolUsersTable.role,
+      branchId: schoolUsersTable.branchId,
+      branchName: branchesTable.name,
+      isActive: schoolUsersTable.isActive,
+      createdAt: schoolUsersTable.createdAt,
+    })
+    .from(schoolUsersTable)
+    .leftJoin(branchesTable, eq(schoolUsersTable.branchId, branchesTable.id))
+    .where(eq(schoolUsersTable.clerkId, params.data.clerkId))
+    .limit(1);
+  res.json(UpdateUserAssignmentResponse.parse(updated));
+});
+
+router.get("/print-requests", async (req, res): Promise<void> => {
+  const profile = await activeProfile(req, res);
+  if (!profile) return;
+  const query = ListPrintRequestsQueryParams.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: query.error.message });
+    return;
+  }
+  const requests = await loadRequests(profile, query.data.status);
+  res.json(ListPrintRequestsResponse.parse(requests));
+});
+
+router.post("/print-requests", async (req, res): Promise<void> => {
+  const parsed = CreatePrintRequestBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const branches = await ensurePrinterBranches();
+  const branch = branches.find((candidate) => candidate.id === parsed.data.branchId);
+  if (!branch) {
+    res.status(400).json({ error: "Uchta mavjud filialdan birini tanlang." });
+    return;
+  }
+  if (parsed.data.dueAt.getTime() <= Date.now()) {
+    res.status(400).json({ error: "Kerakli vaqt kelajakda bo‘lishi kerak." });
+    return;
+  }
+
+  const attachmentPaths = parsed.data.attachments.map((file) => file.objectPath);
+  const uploadTokens = parsed.data.attachments.map((file) =>
+    hashUploadToken(file.ownerToken),
+  );
+  if (
+    new Set(attachmentPaths).size !== attachmentPaths.length ||
+    new Set(uploadTokens).size !== uploadTokens.length
+  ) {
+    res.status(400).json({ error: "Bir xil faylni takroran qo‘shib bo‘lmaydi." });
+    return;
+  }
+  const uploadedFiles = await db
+    .select({
+      objectPath: uploadedFilesTable.objectPath,
+      uploadToken: uploadedFilesTable.uploadToken,
+      name: uploadedFilesTable.name,
+      size: uploadedFilesTable.size,
+      contentType: uploadedFilesTable.contentType,
+      dataLength: sql<number | null>`octet_length(${uploadedFilesTable.fileData})`,
+    })
+    .from(uploadedFilesTable)
     .where(
       and(
-        eq(printerAccountsTable.branchId, branchId),
-        eq(printerAccountsTable.isActive, true),
+        isNull(uploadedFilesTable.requestId),
+        inArray(uploadedFilesTable.objectPath, attachmentPaths),
+        inArray(uploadedFilesTable.uploadToken, uploadTokens),
       ),
-    )
-    .orderBy(asc(printerAccountsTable.username))
-    .limit(1);
-  return account?.username ?? null;
-}
+    );
+  if (uploadedFiles.length !== parsed.data.attachments.length) {
+    res.status(400).json({
+      error: "Fayllardan biri sizga tegishli emas yoki avval boshqa buyurtmaga biriktirilgan.",
+    });
+    return;
+  }
+  const filesByPath = new Map(uploadedFiles.map((file) => [file.objectPath, file]));
+  for (const attachment of parsed.data.attachments) {
+    const stored = filesByPath.get(attachment.objectPath);
+    if (
+      !stored ||
+      stored.uploadToken !== hashUploadToken(attachment.ownerToken) ||
+      stored.name !== attachment.name ||
+      stored.size !== attachment.size ||
+      stored.contentType !== attachment.contentType
+    ) {
+      res.status(400).json({ error: "Fayl ma’lumotlari mos kelmadi." });
+      return;
+    }
+    if (stored.dataLength !== stored.size || stored.size > 50 * 1024 * 1024) {
+      res.status(400).json({
+        error: `“${stored.name}” fayli yuklanmagan. Qayta yuklab ko‘ring.`,
+      });
+      return;
+    }
+  }
 
-export async function getPrinterProfile(
-  username: string,
-): Promise<SchoolProfile | null> {
-  const [account] = await db
-    .select({
-      username: printerAccountsTable.username,
-      fullName: printerAccountsTable.fullName,
-      branchId: printerAccountsTable.branchId,
-      branchName: branchesTable.name,
-      isActive: printerAccountsTable.isActive,
-    })
-    .from(printerAccountsTable)
-    .innerJoin(
-      branchesTable,
-      eq(printerAccountsTable.branchId, branchesTable.id),
-    )
-    .where(eq(printerAccountsTable.username, username))
+  const created = await db.transaction(async (tx) => {
+    const [request] = await tx
+      .insert(printRequestsTable)
+      .values({
+        title: parsed.data.title.trim(),
+        requesterName: parsed.data.requesterName.trim(),
+        copies: parsed.data.copies,
+        dueAt: parsed.data.dueAt,
+        note: parsed.data.note?.trim() || null,
+        branchId: branch.id,
+        requestedByUserId: null,
+      })
+      .returning();
+    await tx
+      .update(uploadedFilesTable)
+      .set({ requestId: request.id })
+      .where(
+        and(
+          isNull(uploadedFilesTable.requestId),
+          inArray(uploadedFilesTable.objectPath, attachmentPaths),
+          inArray(uploadedFilesTable.uploadToken, uploadTokens),
+        ),
+      );
+    return request;
+  });
+
+  const printerUsername = await findPrinterAccountForBranch(branch.id);
+  const profile = printerUsername
+    ? await getPrinterProfile(printerUsername)
+    : null;
+  if (!profile) {
+    res.status(500).json({ error: "So‘rov saqlandi, lekin uni qaytarib bo‘lmadi." });
+    return;
+  }
+  const [request] = await loadRequests(profile, undefined, created.id);
+  res.status(201).json(CreatePrintRequestResponse.parse(request));
+});
+
+router.get("/print-requests/:id", async (req, res): Promise<void> => {
+  const profile = await activeProfile(req, res);
+  if (!profile) return;
+  const params = GetPrintRequestParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [request] = await loadRequests(profile, undefined, params.data.id);
+  if (!request) {
+    res.status(404).json({ error: "Buyurtma topilmadi." });
+    return;
+  }
+  res.json(GetPrintRequestResponse.parse(request));
+});
+
+router.patch("/print-requests/:id/status", async (req, res): Promise<void> => {
+  const profile = await activeProfile(req, res);
+  if (!profile) return;
+  if (profile.role !== "admin" && profile.role !== "printer") {
+    res.status(403).json({ error: "Faqat printerchi buyurtma holatini o‘zgartira oladi." });
+    return;
+  }
+  const params = UpdatePrintRequestStatusParams.safeParse(req.params);
+  const body = UpdatePrintRequestStatusBody.safeParse(req.body);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const [current] = await db
+    .select()
+    .from(printRequestsTable)
+    .where(eq(printRequestsTable.id, params.data.id))
     .limit(1);
-  if (!account) return null;
-  return {
-    clerkId: account.username,
-    fullName: account.fullName,
-    email: "",
-    role: "printer",
-    branchId: account.branchId,
-    branchName: account.branchName,
-    isActive: account.isActive,
+  if (!current || !hasBranchAccess(profile, current.branchId)) {
+    res.status(404).json({ error: "Buyurtma topilmadi." });
+    return;
+  }
+  const transitions: Record<
+    (typeof requestStatusEnum.enumValues)[number],
+    Array<(typeof requestStatusEnum.enumValues)[number]>
+  > = {
+    queued: ["in_progress", "cancelled"],
+    in_progress: ["ready", "cancelled"],
+    ready: ["completed", "cancelled"],
+    completed: [],
+    cancelled: [],
   };
-}
+  if (
+    profile.role !== "admin" &&
+    !transitions[current.status].includes(body.data.status)
+  ) {
+    res.status(409).json({ error: "Buyurtma holatini bu bosqichga o‘tkazib bo‘lmaydi." });
+    return;
+  }
 
-export async function getSchoolProfile(
-  req: Request,
-): Promise<SchoolProfile | null> {
-  const username = sessionUsername(req);
-  if (!username) return null;
-  return getPrinterProfile(username);
-}
+  await db
+    .update(printRequestsTable)
+    .set({
+      status: body.data.status,
+      completedAt: body.data.status === "completed" ? new Date() : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(printRequestsTable.id, params.data.id));
+  const [updated] = await loadRequests(profile, undefined, params.data.id);
+  res.json(UpdatePrintRequestStatusResponse.parse(updated));
+});
 
-export function isAdmin(_profile: SchoolProfile): boolean {
-  return false;
-}
-
-export function hasBranchAccess(
-  profile: SchoolProfile,
-  branchId: number,
-): boolean {
-  return profile.isActive && profile.role === "printer" && profile.branchId === branchId;
-}
+export default router;
