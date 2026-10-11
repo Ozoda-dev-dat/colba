@@ -26,15 +26,17 @@ app.use(
     },
   }),
 );
+
+// WEB_ORIGIN o'rnatilgan bo'lsa o'shani, bo'lmasa Vercel / Localhost domenlarini qo'llab-quvvatlash
 const webOrigin = process.env.WEB_ORIGIN?.trim();
-if (webOrigin) {
-  app.use(
-    cors({
-      origin: webOrigin,
-      credentials: true,
-    }),
-  );
-}
+
+app.use(
+  cors({
+    origin: webOrigin || true, // Agar WEB_ORIGIN bo'lmasa, kelgan manzilni avtomatik qabul qiladi
+    credentials: true,
+  }),
+);
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
