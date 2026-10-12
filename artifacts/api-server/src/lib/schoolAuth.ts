@@ -1,6 +1,7 @@
 import {
   createHash,
   createHmac,
+  scrypt,
   timingSafeEqual,
 } from "node:crypto";
 import type { Request, Response } from "express";
@@ -41,6 +42,34 @@ function digest(value: string): Buffer {
 
 function safeEqual(left: string, right: string): boolean {
   return timingSafeEqual(digest(left), digest(right));
+}
+
+function verifyScryptPassword(
+  password: string,
+  storedHash: string,
+): Promise<boolean> {
+  const match = /^scrypt\$32768\$8\$1\$([a-f0-9]{32})\$([a-f0-9]{128})$/.exec(
+    storedHash,
+  );
+  if (!match) return Promise.resolve(false);
+
+  const salt = Buffer.from(match[1], "hex");
+  const expectedKey = Buffer.from(match[2], "hex");
+  return new Promise((resolve, reject) => {
+    scrypt(
+      password,
+      salt,
+      expectedKey.length,
+      { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 },
+      (error, derivedKey) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(timingSafeEqual(derivedKey, expectedKey));
+      },
+    );
+  });
 }
 
 function sign(payload: string): string {
@@ -108,8 +137,9 @@ export async function verifyPrinterCredentials(
     return false;
   }
 
-  // Parollarni to'g'ridan-to'g'ri (oddiy matn sifatida) solishtirish
-  const matches = account.passwordHash === password;
+  const matches = account.passwordHash.startsWith("scrypt$")
+    ? await verifyScryptPassword(password, account.passwordHash)
+    : safeEqual(account.passwordHash, password);
   return account.isActive && matches;
 }
 
