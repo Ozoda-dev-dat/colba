@@ -153,14 +153,14 @@ export function setPrinterSession(res: Response, username: string): void {
   const token = `${encodedPayload}.${sign(encodedPayload)}`;
   res.append(
     "Set-Cookie",
-    `${SESSION_COOKIE}=${token}; Path=/; Max-Age=${SESSION_LIFETIME_SECONDS}; HttpOnly; Secure; SameSite=Strict`,
+    `${SESSION_COOKIE}=${token}; Path=/; Max-Age=${SESSION_LIFETIME_SECONDS}; HttpOnly; Secure; SameSite=None`,
   );
 }
 
 export function clearPrinterSession(res: Response): void {
   res.append(
     "Set-Cookie",
-    `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
+    `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=None`,
   );
 }
 
