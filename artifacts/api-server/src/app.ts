@@ -37,6 +37,16 @@ app.use(
   }),
 );
 
+app.use((req, res, next) => {
+  const isReadOnly = ["GET", "HEAD", "OPTIONS"].includes(req.method);
+  const origin = req.get("Origin");
+  if (!isReadOnly && origin && webOrigin && origin !== webOrigin) {
+    res.status(403).json({ error: "Bu manzildan so‘rov yuborishga ruxsat yo‘q." });
+    return;
+  }
+  next();
+});
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
